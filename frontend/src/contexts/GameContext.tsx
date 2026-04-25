@@ -8,7 +8,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
-import type { GameAppState, ChatMessage, Chapter, DuelQuestion, DuelAction } from '../types';
+import type { GameAppState, ChatMessage, Chapter, DuelQuestion, DuelAction, PrivateMessage } from '../types';
 import { computeGradeProgress } from '../utils/grades';
 import { checkBadges } from '../utils/storage';
 import { useAuth } from './AuthContext';
