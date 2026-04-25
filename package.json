@@ -1,0 +1,10 @@
+{
+  "name": "goat-of-maths",
+  "private": true,
+  "scripts": {
+    "install:all": "cd frontend && npm install && cd ../backend && npm install",
+    "build": "cd frontend && npm run build",
+    "dev:frontend": "cd frontend && npm run dev -- --host",
+    "dev:backend": "cd backend && node server.js"
+  }
+}
