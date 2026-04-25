@@ -126,7 +126,10 @@ function AccountsTab({ editingId, setEditingId, showForm, setShowForm, cardBg, t
   };
 
   const save = async () => {
-    if (!form.username.trim() || !form.displayName.trim()) return;
+    if (!form.username.trim() || !form.displayName.trim()) {
+      alert("Nom d'utilisateur et nom affiché sont requis");
+      return;
+    }
     try {
       if (editingId !== null) {
         await api.accounts.update(editingId as string, {
@@ -137,7 +140,10 @@ function AccountsTab({ editingId, setEditingId, showForm, setShowForm, cardBg, t
           dateNaissance: form.dateNaissance,
         });
       } else {
-        if (!form.password.trim()) return;
+        if (!form.password.trim()) {
+          alert("Mot de passe requis pour un nouveau compte");
+          return;
+        }
         await api.accounts.register({
           username: form.username.toLowerCase(),
           password: form.password,

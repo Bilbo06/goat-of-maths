@@ -81,7 +81,8 @@ app.get('/api/state', auth, (req, res) => {
     const userBadges = db.prepare('SELECT b.id, b.name, b.icon, b.description, ub.unlocked, ub.unlocked_at FROM badges b LEFT JOIN user_badges ub ON b.id = ub.badge_id AND ub.username = ?').all(u);
     const friends = db.prepare('SELECT friend_name FROM friends WHERE username = ?').all(u).map(r => r.friend_name);
     const chatMessages = db.prepare('SELECT id, username, message, timestamp FROM chat_messages ORDER BY id DESC LIMIT 100').all().reverse();
-    const privateMessages = db.prepare('SELECT id, from_user, "to", message, timestamp FROM private_messages WHERE from_user = ? OR "to" = ? ORDER BY id').all(u, u);
+    const displayName = user.display_name;
+    const privateMessages = db.prepare('SELECT id, from_user, "to", message, timestamp FROM private_messages WHERE from_user = ? OR "to" = ? ORDER BY id').all(displayName, displayName);
     const duelHistory = db.prepare('SELECT id, opponent, opponent_avatar, result, date, xp_gained, coins_gained FROM duel_history WHERE username = ? ORDER BY id DESC LIMIT 20').all(u);
     const dailyRewards = db.prepare('SELECT day, coins, xp, icon, claimed FROM daily_rewards WHERE username = ? ORDER BY day').all(u);
     const training = db.prepare('SELECT today_count, last_reset_date FROM training_state WHERE username = ?').get(u);
@@ -285,8 +286,8 @@ app.get('/api/chat', auth, (req, res) => {
 app.post('/api/chat', auth, (req, res) => {
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Message vide' });
-  const r = db.prepare('INSERT INTO chat_messages (username, message) VALUES (?, ?)').run(req.user.username, message.trim());
-  res.json({ id: r.lastInsertRowid, username: req.user.username, message: message.trim(), timestamp: new Date().toISOString() });
+  const r = db.prepare('INSERT INTO chat_messages (username, message) VALUES (?, ?)').run(req.user.displayName, message.trim());
+  res.json({ id: r.lastInsertRowid, username: req.user.displayName, message: message.trim(), timestamp: new Date().toISOString() });
 });
 
 // ========== PRIVATE MESSAGES ==========
@@ -299,7 +300,7 @@ app.get('/api/messages/:friend', auth, (req, res) => {
 app.post('/api/messages/:friend', auth, (req, res) => {
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Message vide' });
-  const r = db.prepare('INSERT INTO private_messages (from_user, "to", message) VALUES (?, ?, ?)').run(req.user.username, req.params.friend, message.trim());
+  const r = db.prepare('INSERT INTO private_messages (from_user, "to", message) VALUES (?, ?, ?)').run(req.user.displayName, req.params.friend, message.trim());
   res.json({ id: r.lastInsertRowid });
 });
 
