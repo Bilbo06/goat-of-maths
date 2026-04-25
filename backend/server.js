@@ -72,54 +72,59 @@ app.get('/api/auth/me', auth, (req, res) => {
 // ========== GAME STATE ==========
 
 app.get('/api/state', auth, (req, res) => {
-  const u = req.user.username;
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(u);
-  if (!user) return res.status(404).json({ error: 'Non trouvé' });
+  try {
+    const u = req.user.username;
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(u);
+    if (!user) return res.status(404).json({ error: 'Non trouvé' });
 
-  const backpack = db.prepare('SELECT item_id as id, item_name as name, item_icon as icon, item_type as type, quantity FROM user_backpack WHERE username = ?').all(u);
-  const userBadges = db.prepare('SELECT b.id, b.name, b.icon, b.description, ub.unlocked, ub.unlocked_at FROM badges b LEFT JOIN user_badges ub ON b.id = ub.badge_id AND ub.username = ?').all(u);
-  const friends = db.prepare('SELECT friend_name FROM friends WHERE username = ?').all(u).map(r => r.friend_name);
-  const chatMessages = db.prepare('SELECT id, username, message, timestamp FROM chat_messages ORDER BY id DESC LIMIT 100').all().reverse();
-  const privateMessages = db.prepare('SELECT id, from_user, "to", message, timestamp FROM private_messages WHERE from_user = ? OR "to" = ? ORDER BY id').all(u, u);
-  const duelHistory = db.prepare('SELECT id, opponent, opponent_avatar, result, date, xp_gained, coins_gained FROM duel_history WHERE username = ? ORDER BY id DESC LIMIT 20').all(u);
-  const dailyRewards = db.prepare('SELECT day, coins, xp, icon, claimed FROM daily_rewards WHERE username = ? ORDER BY day').all(u);
-  const training = db.prepare('SELECT today_count, last_reset_date FROM training_state WHERE username = ?').get(u);
+    const backpack = db.prepare('SELECT item_id as id, item_name as name, item_icon as icon, item_type as type, quantity FROM user_backpack WHERE username = ?').all(u);
+    const userBadges = db.prepare('SELECT b.id, b.name, b.icon, b.description, ub.unlocked, ub.unlocked_at FROM badges b LEFT JOIN user_badges ub ON b.id = ub.badge_id AND ub.username = ?').all(u);
+    const friends = db.prepare('SELECT friend_name FROM friends WHERE username = ?').all(u).map(r => r.friend_name);
+    const chatMessages = db.prepare('SELECT id, username, message, timestamp FROM chat_messages ORDER BY id DESC LIMIT 100').all().reverse();
+    const privateMessages = db.prepare('SELECT id, from_user, "to", message, timestamp FROM private_messages WHERE from_user = ? OR "to" = ? ORDER BY id').all(u, u);
+    const duelHistory = db.prepare('SELECT id, opponent, opponent_avatar, result, date, xp_gained, coins_gained FROM duel_history WHERE username = ? ORDER BY id DESC LIMIT 20').all(u);
+    const dailyRewards = db.prepare('SELECT day, coins, xp, icon, claimed FROM daily_rewards WHERE username = ? ORDER BY day').all(u);
+    const training = db.prepare('SELECT today_count, last_reset_date FROM training_state WHERE username = ?').get(u);
 
-  const guildMember = db.prepare('SELECT guild_id FROM guild_members WHERE username = ?').get(u);
-  let guildState = { myGuildId: null, guilds: [] };
-  const allGuilds = db.prepare(`
-    SELECT g.*, GROUP_CONCAT(gm.username) as member_names
-    FROM guilds g LEFT JOIN guild_members gm ON g.id = gm.guild_id
-    GROUP BY g.id
-  `).all();
-  guildState.guilds = allGuilds.map(g => ({
-    id: g.id, name: g.name, emoji: g.emoji, memberNames: g.member_names ? g.member_names.split(',') : [],
-    maxMembers: g.max_members, level: g.level, xp: g.xp, chef: g.chef, chefAdjoint: g.chef_adjoint,
-    treasury: g.treasury, entryFee: g.entry_fee, payoutPercentage: g.payout_percentage,
-    pendingRequests: db.prepare('SELECT username FROM guild_pending_requests WHERE guild_id = ?').all(g.id).map(r => r.username),
-    lastPayoutDate: g.last_payout_date, pendingChefTransfer: g.pending_chef_transfer,
-    pendingChefTransferDate: g.pending_chef_transfer_date,
-    guildMissions: db.prepare('SELECT id, label, icon, xp_reward, coins_reward, completed_by, rewarded, date FROM guild_missions WHERE guild_id = ?').all(g.id),
-    guildMissionsDate: ''
-  }));
-  if (guildMember) guildState.myGuildId = guildMember.guild_id;
+    const guildMember = db.prepare('SELECT guild_id FROM guild_members WHERE username = ?').get(u);
+    let guildState = { myGuildId: null, guilds: [] };
+    const allGuilds = db.prepare(`
+      SELECT g.*, GROUP_CONCAT(gm.username) as member_names
+      FROM guilds g LEFT JOIN guild_members gm ON g.id = gm.guild_id
+      GROUP BY g.id
+    `).all();
+    guildState.guilds = allGuilds.map(g => ({
+      id: g.id, name: g.name, emoji: g.emoji, memberNames: g.member_names ? g.member_names.split(',') : [],
+      maxMembers: g.max_members, level: g.level, xp: g.xp, chef: g.chef, chefAdjoint: g.chef_adjoint,
+      treasury: g.treasury, entryFee: g.entry_fee, payoutPercentage: g.payout_percentage,
+      pendingRequests: db.prepare('SELECT username FROM guild_pending_requests WHERE guild_id = ?').all(g.id).map(r => r.username),
+      lastPayoutDate: g.last_payout_date, pendingChefTransfer: g.pending_chef_transfer,
+      pendingChefTransferDate: g.pending_chef_transfer_date,
+      guildMissions: [],
+      guildMissionsDate: ''
+    }));
+    if (guildMember) guildState.myGuildId = guildMember.guild_id;
 
-  res.json({
-    userData: {
-      name: user.display_name, hp: user.hp, maxHp: user.max_hp, force: user.force,
-      totalXP: user.total_xp, coins: user.coins, streak: user.streak,
-      lastLoginDate: user.last_login_date, consultedChapters: JSON.parse(user.consulted_chapters),
-      purchasedItems: JSON.parse(user.purchased_items), statPoints: user.stat_points,
-      backpack, theme: user.theme, boostXPUntil: user.boost_xp_until,
-      avatar: user.avatar || '', equippedDecoration: user.equipped_decoration,
-      shieldUntil: user.shield_until, timeBonus: !!user.time_bonus
-    },
-    missions: [], quizState: { attempts: [], todayQuizCount: 0, lastResetDate: '', lockedQuizzes: {} },
-    chatMessages, privateMessages, darkMode: false,
-    duelState: { phase: 'menu', opponent: null, playerHp: user.max_hp, playerMaxHp: user.max_hp, opponentHp: 100, rounds: [], currentRound: 0, timer: 20, baseTime: 20, result: null, todayDuels: 0, lastDuelDate: '', specialReady: false, isTraining: false, rageStreak: 0, rageTicks: 0, healsUsed: 0, consecutiveDefends: 0 },
-    dailyRewards, lastRewardDate: '', trainingState: training || { todayCount: 0, lastResetDate: '' },
-    guildState, duelHistory, badges: userBadges.map(b => ({ ...b, unlocked: !!b.unlocked })), friends
-  });
+    res.json({
+      userData: {
+        name: user.display_name, hp: user.hp, maxHp: user.max_hp, force: user.force,
+        totalXP: user.total_xp, coins: user.coins, streak: user.streak,
+        lastLoginDate: user.last_login_date, consultedChapters: JSON.parse(user.consulted_chapters || '[]'),
+        purchasedItems: JSON.parse(user.purchased_items || '[]'), statPoints: user.stat_points,
+        backpack, theme: user.theme || 'default', boostXPUntil: user.boost_xp_until || '',
+        avatar: user.avatar || '', equippedDecoration: user.equipped_decoration,
+        shieldUntil: user.shield_until || '', timeBonus: !!user.time_bonus
+      },
+      missions: [], quizState: { attempts: [], todayQuizCount: 0, lastResetDate: '', lockedQuizzes: {} },
+      chatMessages, privateMessages, darkMode: false,
+      duelState: { phase: 'menu', opponent: null, playerHp: user.max_hp, playerMaxHp: user.max_hp, opponentHp: 100, rounds: [], currentRound: 0, timer: 20, baseTime: 20, result: null, todayDuels: 0, lastDuelDate: '', specialReady: false, isTraining: false, rageStreak: 0, rageTicks: 0, healsUsed: 0, consecutiveDefends: 0 },
+      dailyRewards, lastRewardDate: '', trainingState: training || { todayCount: 0, lastResetDate: '' },
+      guildState, duelHistory, badges: userBadges.map(b => ({ ...b, unlocked: !!b.unlocked })), friends
+    });
+  } catch (err) {
+    console.error('State error:', err);
+    res.status(500).json({ error: String(err.message || err) });
+  }
 });
 
 app.post('/api/state', auth, (req, res) => {
