@@ -101,8 +101,30 @@ export const api = {
   },
   messages: {
     get: (friend: string) =>
-      request<Array<{ id: number; from_user: string; to: string; message: string; timestamp: string }>>(`/messages/${friend}`),
+      request<Array<{ id: number; from_user: string; to: string; message: string; timestamp: string }>>(`/messages/${encodeURIComponent(friend)}`),
     send: (friend: string, message: string) =>
-      request<{ id: number }>(`/messages/${friend}`, { method: 'POST', body: JSON.stringify({ message }) }),
+      request<{ id: number }>(`/messages/${encodeURIComponent(friend)}`, { method: 'POST', body: JSON.stringify({ message }) }),
   },
+  friends: {
+    list: () => request<string[]>('/friends'),
+    add: (name: string) => request<{ ok: boolean }>(`/friends/${encodeURIComponent(name)}`, { method: 'POST' }),
+    remove: (name: string) => request<{ ok: boolean }>(`/friends/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  },
+  users: {
+    list: () => request<Array<{ name: string; avatar: string }>>('/users'),
+  },
+  guilds: {
+    list: () => request<Array<Record<string, unknown>>>('/guilds'),
+    create: (data: { name: string; emoji: string; entryFee?: number }) =>
+      request<{ id: number }>('/guilds', { method: 'POST', body: JSON.stringify(data) }),
+    join: (id: number) => request<{ ok: boolean }>(`/guilds/${id}/join`, { method: 'POST' }),
+    leave: (id: number) => request<{ ok: boolean }>(`/guilds/${id}/leave`, { method: 'POST' }),
+    accept: (id: number, name: string) => request<{ ok: boolean }>(`/guilds/${id}/accept`, { method: 'POST', body: JSON.stringify({ name }) }),
+    reject: (id: number, name: string) => request<{ ok: boolean }>(`/guilds/${id}/reject`, { method: 'POST', body: JSON.stringify({ name }) }),
+    kick: (id: number, name: string) => request<{ ok: boolean }>(`/guilds/${id}/kick`, { method: 'POST', body: JSON.stringify({ name }) }),
+    delete: (id: number) => request<{ ok: boolean }>(`/guilds/${id}`, { method: 'DELETE' }),
+    settings: (id: number, data: { entryFee?: number; payoutPercentage?: number; chefAdjoint?: string }) =>
+      request<{ ok: boolean }>(`/guilds/${id}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
+  },
+  shopBuy: (id: number) => request<{ ok: boolean; newCoins: number }>(`/shop/${id}/buy`, { method: 'POST' }),
 };

@@ -279,6 +279,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         } else {
           bp.push({ id: bpId, name: bpName, icon: bpIcon, type: 'consumable', quantity: qty });
         }
+        api.shopBuy(itemId).catch(() => {});
         return {
           ...prev,
           userData: { ...prev.userData, coins: prev.userData.coins - price, backpack: bp },
@@ -303,6 +304,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         } else {
           bp.push({ id: boostId, name: item.name, icon: item.icon, type: 'boost', quantity: 1 });
         }
+        api.shopBuy(itemId).catch(() => {});
         return {
           ...prev,
           userData: { ...prev.userData, coins: prev.userData.coins - price, backpack: bp },
@@ -311,9 +313,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       if (item.type === 'theme' || item.type === 'decoration' || item.type === 'avatar') {
         if (prev.userData.purchasedItems.includes(itemId)) return prev;
+        api.shopBuy(itemId).catch(() => {});
         return {
           ...prev,
           userData: { ...prev.userData, coins: prev.userData.coins - price, purchasedItems: [...prev.userData.purchasedItems, itemId] },
+          badges,
         };
       }
 
@@ -323,19 +327,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback((message: string) => {
     if (!message.trim()) return;
+    const msg = message.trim();
     setState((prev) => {
       const newMsg: ChatMessage = {
         id: prev.chatMessages.length + 1,
         username: prev.userData.name.split(' ')[0],
-        message: message.trim(),
+        message: msg,
         timestamp: new Date().toISOString(),
       };
-      return {
-        ...prev,
-        chatMessages: [...prev.chatMessages, newMsg],
-      };
+      return { ...prev, chatMessages: [...prev.chatMessages, newMsg] };
     });
-    api.chat.send(message.trim()).catch(() => {});
+    api.chat.send(msg).catch(() => {});
   }, []);
 
   const canTakeQuizFn = useCallback(
@@ -824,6 +826,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
         guildMissions: [] as import('../types').GuildMission[],
         guildMissionsDate: '',
       };
+      api.guilds.create({ name, emoji }).then((r) => {
+        setState((p) => ({ ...p, guildState: { ...p.guildState, myGuildId: r.id } }));
+      }).catch(() => {});
       return {
         ...prev,
         userData: { ...prev.userData, coins: prev.userData.coins - 10000 },
@@ -844,6 +849,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (prev.userData.coins < g.entryFee) return g;
         return { ...g, pendingRequests: [...g.pendingRequests, prev.userData.name] };
       });
+      api.guilds.join(guildId).catch(() => {});
       return { ...prev, guildState: { ...prev.guildState, guilds } };
     });
   }, []);
@@ -860,6 +866,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const newAdjoint = g.chefAdjoint === prev.userData.name ? null : g.chefAdjoint;
         return { ...g, memberNames: members, chef: newChef, chefAdjoint: newAdjoint };
       });
+      api.guilds.leave(guildId).catch(() => {});
       return { ...prev, guildState: { ...prev.guildState, guilds, myGuildId: null } };
     });
   }, []);
@@ -899,6 +906,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           treasury: g.treasury + fee,
         };
       });
+      api.guilds.accept(guildId, name).catch(() => {});
       return { ...prev, guildState: { ...prev.guildState, guilds } };
     });
   }, []);
@@ -910,6 +918,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (g.chef !== prev.userData.name && g.chefAdjoint !== prev.userData.name) return g;
         return { ...g, pendingRequests: g.pendingRequests.filter((n) => n !== name) };
       });
+      api.guilds.reject(guildId, name).catch(() => {});
       return { ...prev, guildState: { ...prev.guildState, guilds } };
     });
   }, []);
@@ -955,6 +964,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState((prev) => {
       const guild = prev.guildState.guilds.find((g) => g.id === prev.guildState.myGuildId);
       if (!guild || guild.chef !== prev.userData.name) return prev;
+      api.guilds.delete(prev.guildState.myGuildId).catch(() => {});
       return {
         ...prev,
         guildState: {
@@ -995,6 +1005,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const guilds = prev.guildState.guilds.map((g) => {
         if (g.id !== prev.guildState.myGuildId || g.chef !== prev.userData.name) return g;
         if (name === g.chef || name === prev.userData.name) return g;
+        api.guilds.kick(g.id, name).catch(() => {});
         return {
           ...g,
           memberNames: g.memberNames.filter((n) => n !== name),
@@ -1055,6 +1066,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const sendPrivateMessage = useCallback((to: string, message: string) => {
     if (!message.trim()) return;
+    const msg = message.trim();
     setState((prev) => ({
       ...prev,
       privateMessages: [
@@ -1063,12 +1075,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
           id: prev.privateMessages.length + 1,
           from: prev.userData.name,
           to,
-          message: message.trim(),
+          message: msg,
           timestamp: new Date().toISOString(),
         },
       ],
     }));
-    api.messages.send(to, message.trim()).catch(() => {});
+    api.messages.send(to, msg).catch(() => {});
   }, []);
 
   const addFriend = useCallback((name: string) => {
@@ -1077,6 +1089,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (prev.friends.includes(name) || name === prev.userData.name) return prev;
       return { ...prev, friends: [...prev.friends, name] };
     });
+    api.friends.add(name).catch(() => {});
   }, []);
 
   const removeFriend = useCallback((name: string) => {
@@ -1084,6 +1097,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       ...prev,
       friends: prev.friends.filter((n) => n !== name),
     }));
+    api.friends.remove(name).catch(() => {});
   }, []);
 
   return (

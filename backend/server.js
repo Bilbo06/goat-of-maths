@@ -303,6 +303,209 @@ app.post('/api/messages/:friend', auth, (req, res) => {
   res.json({ id: r.lastInsertRowid });
 });
 
+// ========== FRIENDS ==========
+
+app.get('/api/friends', auth, (req, res) => {
+  const friends = db.prepare('SELECT friend_name FROM friends WHERE username = ?').all(req.user.username).map(r => r.friend_name);
+  res.json(friends);
+});
+
+app.post('/api/friends/:name', auth, (req, res) => {
+  const friendName = req.params.name;
+  if (friendName === req.user.username) return res.status(400).json({ error: 'Impossible de s\'ajouter soi-même' });
+  const existing = db.prepare('SELECT friend_name FROM friends WHERE username = ? AND friend_name = ?').get(req.user.username, friendName);
+  if (existing) return res.json({ ok: true });
+  const count = db.prepare('SELECT COUNT(*) as c FROM friends WHERE username = ?').get(req.user.username).c;
+  if (count >= 50) return res.status(400).json({ error: 'Limite de 50 amis atteinte' });
+  db.prepare('INSERT OR IGNORE INTO friends (username, friend_name) VALUES (?, ?)').run(req.user.username, friendName);
+  res.json({ ok: true });
+});
+
+app.delete('/api/friends/:name', auth, (req, res) => {
+  db.prepare('DELETE FROM friends WHERE username = ? AND friend_name = ?').run(req.user.username, req.params.name);
+  res.json({ ok: true });
+});
+
+app.get('/api/users', auth, (req, res) => {
+  const users = db.prepare('SELECT display_name as name, avatar FROM users').all();
+  res.json(users);
+});
+
+// ========== GUILDS ==========
+
+app.get('/api/guilds', (req, res) => {
+  const allGuilds = db.prepare(`
+    SELECT g.*, GROUP_CONCAT(gm.username) as member_names
+    FROM guilds g LEFT JOIN guild_members gm ON g.id = gm.guild_id
+    GROUP BY g.id
+  `).all();
+  res.json(allGuilds.map(g => ({
+    id: g.id, name: g.name, emoji: g.emoji, memberNames: g.member_names ? g.member_names.split(',') : [],
+    maxMembers: g.max_members, level: g.level, xp: g.xp, chef: g.chef, chefAdjoint: g.chef_adjoint,
+    treasury: g.treasury, entryFee: g.entry_fee, payoutPercentage: g.payout_percentage,
+    pendingRequests: db.prepare('SELECT username FROM guild_pending_requests WHERE guild_id = ?').all(g.id).map(r => r.username),
+    lastPayoutDate: g.last_payout_date, pendingChefTransfer: g.pending_chef_transfer,
+    pendingChefTransferDate: g.pending_chef_transfer_date,
+  })));
+});
+
+app.post('/api/guilds', auth, (req, res) => {
+  const { name, emoji, entryFee } = req.body;
+  if (!name || !emoji) return res.status(400).json({ error: 'Nom et emoji requis' });
+  const user = db.prepare('SELECT coins, display_name FROM users WHERE username = ?').get(req.user.username);
+  if (!user || user.coins < 10000) return res.status(400).json({ error: '10 000 pièces requises' });
+  const existing = db.prepare('SELECT guild_id FROM guild_members WHERE username = ?').get(req.user.username);
+  if (existing) return res.status(400).json({ error: 'Déjà dans une guilde' });
+  db.prepare('UPDATE users SET coins = coins - 10000 WHERE username = ?').run(req.user.username);
+  const r = db.prepare('INSERT INTO guilds (name, emoji, chef, entry_fee) VALUES (?, ?, ?, ?)').run(name, emoji, user.display_name, entryFee || 50);
+  db.prepare('INSERT INTO guild_members (guild_id, username) VALUES (?, ?)').run(Number(r.lastInsertRowid), req.user.username);
+  res.json({ id: Number(r.lastInsertRowid) });
+});
+
+app.post('/api/guilds/:id/join', auth, (req, res) => {
+  const gid = Number(req.params.id);
+  const guild = db.prepare('SELECT * FROM guilds WHERE id = ?').get(gid);
+  if (!guild) return res.status(404).json({ error: 'Guilde introuvable' });
+  const existing = db.prepare('SELECT guild_id FROM guild_members WHERE username = ?').get(req.user.username);
+  if (existing) return res.status(400).json({ error: 'Déjà dans une guilde' });
+  const user = db.prepare('SELECT coins, display_name FROM users WHERE username = ?').get(req.user.username);
+  if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
+  const pending = db.prepare('SELECT username FROM guild_pending_requests WHERE guild_id = ? AND username = ?').get(gid, user.display_name);
+  if (pending) return res.json({ ok: true });
+  db.prepare('INSERT OR IGNORE INTO guild_pending_requests (guild_id, username) VALUES (?, ?)').run(gid, user.display_name);
+  res.json({ ok: true });
+});
+
+app.post('/api/guilds/:id/leave', auth, (req, res) => {
+  const gid = Number(req.params.id);
+  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
+  db.prepare('DELETE FROM guild_members WHERE guild_id = ? AND username = ?').run(gid, req.user.username);
+  const members = db.prepare('SELECT username FROM guild_members WHERE guild_id = ?').all(gid);
+  if (members.length === 0) {
+    db.prepare('DELETE FROM guilds WHERE id = ?').run(gid);
+  } else if (user) {
+    const guild = db.prepare('SELECT chef, chef_adjoint FROM guilds WHERE id = ?').get(gid);
+    if (guild) {
+      if (guild.chef === user.display_name) {
+        db.prepare('UPDATE guilds SET chef = ? WHERE id = ?').run(members[0].username, gid);
+      }
+      if (guild.chef_adjoint === user.display_name) {
+        db.prepare('UPDATE guilds SET chef_adjoint = NULL WHERE id = ?').run(gid);
+      }
+    }
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/guilds/:id/accept', auth, (req, res) => {
+  const gid = Number(req.params.id);
+  const { name } = req.body;
+  const guild = db.prepare('SELECT chef, chef_adjoint, entry_fee FROM guilds WHERE id = ?').get(gid);
+  if (!guild) return res.status(404).json({ error: 'Guilde introuvable' });
+  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
+  if (guild.chef !== user?.display_name && guild.chef_adjoint !== user?.display_name) return res.status(403).json({ error: 'Pas chef' });
+  db.prepare('DELETE FROM guild_pending_requests WHERE guild_id = ? AND username = ?').run(gid, name);
+  const targetUser = db.prepare('SELECT username FROM users WHERE display_name = ?').get(name);
+  if (targetUser) {
+    db.prepare('INSERT OR IGNORE INTO guild_members (guild_id, username) VALUES (?, ?)').run(gid, targetUser.username);
+    db.prepare('UPDATE guilds SET treasury = treasury + ? WHERE id = ?').run(guild.entry_fee, gid);
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/guilds/:id/reject', auth, (req, res) => {
+  const gid = Number(req.params.id);
+  const { name } = req.body;
+  db.prepare('DELETE FROM guild_pending_requests WHERE guild_id = ? AND username = ?').run(gid, name);
+  res.json({ ok: true });
+});
+
+app.post('/api/guilds/:id/kick', auth, (req, res) => {
+  const gid = Number(req.params.id);
+  const { name } = req.body;
+  const guild = db.prepare('SELECT chef FROM guilds WHERE id = ?').get(gid);
+  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
+  if (!guild || guild.chef !== user?.display_name) return res.status(403).json({ error: 'Pas chef' });
+  if (name === guild.chef) return res.status(400).json({ error: 'Impossible' });
+  const targetUser = db.prepare('SELECT username FROM users WHERE display_name = ?').get(name);
+  if (targetUser) {
+    db.prepare('DELETE FROM guild_members WHERE guild_id = ? AND username = ?').run(gid, targetUser.username);
+  }
+  res.json({ ok: true });
+});
+
+app.delete('/api/guilds/:id', auth, (req, res) => {
+  const gid = Number(req.params.id);
+  const guild = db.prepare('SELECT chef FROM guilds WHERE id = ?').get(gid);
+  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
+  if (!guild || guild.chef !== user?.display_name) return res.status(403).json({ error: 'Pas chef' });
+  db.prepare('DELETE FROM guild_members WHERE guild_id = ?').run(gid);
+  db.prepare('DELETE FROM guild_pending_requests WHERE guild_id = ?').run(gid);
+  db.prepare('DELETE FROM guild_missions WHERE guild_id = ?').run(gid);
+  db.prepare('DELETE FROM guilds WHERE id = ?').run(gid);
+  res.json({ ok: true });
+});
+
+app.put('/api/guilds/:id/settings', auth, (req, res) => {
+  const gid = Number(req.params.id);
+  const { entryFee, payoutPercentage, chefAdjoint } = req.body;
+  const guild = db.prepare('SELECT chef FROM guilds WHERE id = ?').get(gid);
+  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
+  if (!guild || guild.chef !== user?.display_name) return res.status(403).json({ error: 'Pas chef' });
+  if (entryFee !== undefined) db.prepare('UPDATE guilds SET entry_fee = ? WHERE id = ?').run(entryFee, gid);
+  if (payoutPercentage !== undefined) db.prepare('UPDATE guilds SET payout_percentage = ? WHERE id = ?').run(payoutPercentage, gid);
+  if (chefAdjoint !== undefined) db.prepare('UPDATE guilds SET chef_adjoint = ? WHERE id = ?').run(chefAdjoint, gid);
+  res.json({ ok: true });
+});
+
+// ========== SHOP PURCHASE ==========
+
+app.post('/api/shop/:id/buy', auth, (req, res) => {
+  const itemId = Number(req.params.id);
+  const item = db.prepare('SELECT * FROM shop_items WHERE id = ?').get(itemId);
+  if (!item) return res.status(404).json({ error: 'Item introuvable' });
+  const user = db.prepare('SELECT coins FROM users WHERE username = ?').get(req.user.username);
+  if (!user || user.coins < item.price) return res.status(400).json({ error: 'Pas assez de pièces' });
+  db.prepare('UPDATE users SET coins = coins - ? WHERE username = ?').run(item.price, req.user.username);
+  const purchased = JSON.parse(db.prepare('SELECT purchased_items FROM users WHERE username = ?').get(req.user.username).purchased_items || '[]');
+  if ((item.type === 'theme' || item.type === 'decoration' || item.type === 'avatar') && !purchased.includes(itemId)) {
+    purchased.push(itemId);
+    db.prepare('UPDATE users SET purchased_items = ? WHERE username = ?').run(JSON.stringify(purchased), req.user.username);
+  }
+  if (item.type === 'consumable' || item.type === 'boost') {
+    let bpId = 'consumable-' + itemId;
+    let bpName = item.name;
+    let bpIcon = item.icon;
+    let bpType = item.type;
+    let qty = 1;
+    const nameLower = item.name.toLowerCase();
+    if (nameLower.includes('pansement')) {
+      bpId = 'bandage'; bpName = 'Pansement'; bpIcon = '🩹'; bpType = 'consumable';
+      const match = item.name.match(/x\s*(\d+)/i);
+      if (match) qty = parseInt(match[1]);
+    } else if (nameLower.includes('second souffle')) {
+      bpId = 'second-souffle'; bpName = 'Second Souffle'; bpIcon = '🔄'; bpType = 'consumable';
+      const match = item.name.match(/x\s*(\d+)/i);
+      if (match) qty = parseInt(match[1]);
+    } else if (item.type === 'boost') {
+      const descLower = (item.description || '').toLowerCase();
+      if (descLower.includes('série') || descLower.includes('streak') || descLower.includes('bouclier')) bpId = 'boost-shield';
+      else if (descLower.includes('temps') || descLower.includes('time')) bpId = 'boost-time';
+      else if (descLower.includes('xp') || descLower.includes('double')) bpId = 'boost-xp';
+      else bpId = 'boost-' + itemId;
+      bpType = 'boost';
+    }
+    const existing = db.prepare('SELECT quantity FROM user_backpack WHERE username = ? AND item_id = ?').get(req.user.username, bpId);
+    if (existing) {
+      db.prepare('UPDATE user_backpack SET quantity = quantity + ? WHERE username = ? AND item_id = ?').run(qty, req.user.username, bpId);
+    } else {
+      db.prepare('INSERT INTO user_backpack (username, item_id, item_name, item_icon, item_type, quantity) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(req.user.username, bpId, bpName, bpIcon, bpType, qty);
+    }
+  }
+  res.json({ ok: true, newCoins: user.coins - item.price });
+});
+
 // ========== SEED ==========
 
 function seed() {
