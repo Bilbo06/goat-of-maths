@@ -153,9 +153,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
           });
         }
         if (apiState?.privateMessages) {
+          const pms = apiState.privateMessages as PrivateMessage[];
           setState((prev) => {
             const maxId = Math.max(...prev.privateMessages.map((m) => m.id), 0);
-            const newMsgs = (apiState.privateMessages as Array<{id: number}>).filter((m) => m.id > maxId);
+            const newMsgs = pms.filter((m) => m.id > maxId);
             if (newMsgs.length === 0) return prev;
             return { ...prev, privateMessages: [...prev.privateMessages, ...newMsgs] };
           });
