@@ -1,6 +1,4 @@
-const API_BASE = window.location.hostname === 'localhost'
-  ? '/api'
-  : 'https://goat-of-maths-api.onrender.com/api';
+const API_BASE = 'https://goat-of-maths-api.onrender.com/api';
 
 let authToken: string | null = localStorage.getItem('goat-token');
 

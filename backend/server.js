@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = 'goat-of-maths-secret-change-in-production';
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
+app.use(cors({ origin: true }));
 app.use(express.json({ limit: '10mb' }));
 
 function auth(req, res, next) {
@@ -23,7 +23,7 @@ function auth(req, res, next) {
 }
 
 function adminOnly(req, res, next) {
-  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin uniquement' });
+  if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin uniquement' });
   next();
 }
 
