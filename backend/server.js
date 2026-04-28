@@ -27,567 +27,681 @@ function adminOnly(req, res, next) {
   next();
 }
 
+let seeded = false;
+
+async function seedIfEmpty() {
+  if (seeded) return;
+  const snap = await db.collection('questions').limit(1).get();
+  if (!snap.empty) { seeded = true; return; }
+
+  const batch = db.batch();
+
+  const questions = [
+    { question: 'Combien font 7 x 8 ?', options: ['54', '56', '58', '64'], correctAnswer: 1, explanation: '7 × 8 = 56' },
+    { question: 'Racine carrée de 144 ?', options: ['10', '11', '12', '14'], correctAnswer: 2, explanation: '√144 = 12 car 12 × 12 = 144' },
+    { question: 'Combien font 15% de 200 ?', options: ['15', '20', '25', '30'], correctAnswer: 3, explanation: '15% de 200 = 30' },
+    { question: 'Quel est le PGCD de 12 et 18 ?', options: ['2', '3', '6', '9'], correctAnswer: 2, explanation: 'Le PGCD de 12 et 18 est 6' },
+    { question: 'Combien font 2³ ?', options: ['6', '8', '9', '12'], correctAnswer: 1, explanation: '2³ = 8' },
+    { question: "L'aire d'un cercle de rayon 3 ?", options: ['9,42', '18,85', '28,27', '12,57'], correctAnswer: 2, explanation: 'Aire = π × r² ≈ 28,27' },
+    { question: 'Combien font 25 × 4 ?', options: ['90', '100', '110', '125'], correctAnswer: 1, explanation: '25 × 4 = 100' },
+    { question: 'Si x + 5 = 12, que vaut x ?', options: ['5', '6', '7', '8'], correctAnswer: 2, explanation: 'x = 12 − 5 = 7' },
+    { question: "Combien de côtés a un hexagone ?", options: ['5', '6', '7', '8'], correctAnswer: 1, explanation: 'Hexagone = 6 côtés' },
+    { question: 'Combien font 3/4 + 1/4 ?', options: ['1/2', '2/4', '1', '4/8'], correctAnswer: 2, explanation: '3/4 + 1/4 = 1' },
+    { question: 'Résultat de (-3) × (-5) ?', options: ['-15', '-8', '8', '15'], correctAnswer: 3, explanation: '(-3)×(-5) = 15' },
+    { question: 'Combien font 1000 - 357 ?', options: ['643', '653', '743', '753'], correctAnswer: 0, explanation: '1000 − 357 = 643' },
+  ];
+  for (const q of questions) batch.set(db.collection('questions').doc(), q);
+
+  const shopItems = [
+    { name: 'Avatar Einstein', icon: '👴', type: 'avatar', price: 100, description: 'Avatar du génie Einstein', themeId: null },
+    { name: 'Avatar Newton', icon: '🍎', type: 'avatar', price: 100, description: 'Avatar de Isaac Newton', themeId: null },
+    { name: 'Avatar Pythagore', icon: '📐', type: 'avatar', price: 100, description: 'Maître de la géométrie', themeId: null },
+    { name: 'Double XP 24h', icon: '⚡', type: 'boost', price: 200, description: 'Double XP pendant 24h', themeId: null },
+    { name: 'Bouclier 3 jours', icon: '🛡️', type: 'boost', price: 150, description: 'Protège ta série pendant 3 jours', themeId: null },
+    { name: 'Cadre Or', icon: '🖼️', type: 'decoration', price: 300, description: 'Cadre doré pour ton profil', themeId: null },
+    { name: 'Bannière Étoilée', icon: '⭐', type: 'decoration', price: 250, description: 'Bannière avec des étoiles', themeId: null },
+    { name: 'Temps Bonus', icon: '⏱️', type: 'boost', price: 180, description: '+30 secondes sur les quiz', themeId: null },
+    { name: 'Pansement x1', icon: '🩹', type: 'consumable', price: 30, description: 'Permet de se soigner 1 fois en duel', themeId: null },
+    { name: 'Pansement x3', icon: '🩹', type: 'consumable', price: 75, description: '3 pansements pour les duels', themeId: null },
+    { name: 'Pansement x5', icon: '🩹', type: 'consumable', price: 120, description: '5 pansements pour les duels', themeId: null },
+    { name: "Second Souffle", icon: '🔄', type: 'consumable', price: 150, description: "Annule 1 erreur pendant l'entraînement", themeId: null },
+    { name: "Second Souffle x3", icon: '🔄', type: 'consumable', price: 400, description: "3 Second Souffle pour l'entraînement", themeId: null },
+    { name: 'Thème Océan', icon: '🌊', type: 'theme', price: 300, description: 'Bleu océan', themeId: 'ocean' },
+    { name: 'Thème Forêt', icon: '🌲', type: 'theme', price: 300, description: 'Vert forêt', themeId: 'forest' },
+    { name: 'Thème Royal', icon: '👑', type: 'theme', price: 400, description: 'Violet royal', themeId: 'royal' },
+    { name: 'Thème Nuit', icon: '🌙', type: 'theme', price: 350, description: 'Bleu nuit', themeId: 'night' },
+    { name: 'Thème Rose', icon: '🌸', type: 'theme', price: 300, description: 'Rose bonbon', themeId: 'pink' },
+  ];
+  for (const item of shopItems) batch.set(db.collection('shop_items').doc(), item);
+
+  const badges = [
+    { id: 'first_login', name: 'Premier pas', icon: '👶', description: 'Se connecter pour la première fois' },
+    { id: 'first_training', name: 'Entraîné', icon: '🏋️', description: 'Compléter 1 entraînement' },
+    { id: 'first_duel', name: 'Combattant', icon: '⚔️', description: 'Faire 1 duel' },
+    { id: 'first_win', name: 'Vainqueur', icon: '🏆', description: 'Gagner 1 duel' },
+    { id: 'streak_3', name: 'Régulier', icon: '🔥', description: 'Atteindre une série de 3 jours' },
+    { id: 'streak_7', name: 'Infatigable', icon: '💪', description: 'Atteindre une série de 7 jours' },
+    { id: 'level_10', name: 'Calculateur', icon: '✏️', description: 'Atteindre le niveau 10' },
+    { id: 'level_50', name: 'Analyste', icon: '📈', description: 'Atteindre le niveau 50' },
+    { id: 'level_100', name: 'Professeur', icon: '🎓', description: 'Atteindre le niveau 100' },
+    { id: 'rich', name: 'Riche', icon: '💰', description: 'Posséder 1 000 pièces' },
+    { id: 'shop_first', name: 'Acheteur', icon: '🛒', description: 'Acheter 1 objet en boutique' },
+    { id: 'guild_join', name: 'Team player', icon: '🏰', description: 'Rejoindre ou créer une guilde' },
+    { id: 'perfect_quiz', name: 'Parfait', icon: '💯', description: 'Obtenir 100% à un quiz' },
+    { id: 'duels_10', name: 'Guerrier', icon: '🗡️', description: 'Faire 10 duels' },
+    { id: 'trainings_10', name: 'Endurant', icon: '🎯', description: 'Compléter 10 entraînements' },
+  ];
+  for (const b of badges) batch.set(db.collection('badges').doc(b.id), b);
+
+  await batch.commit();
+  console.log('Database seeded with default data');
+  seeded = true;
+}
+
+// ========== HELPERS ==========
+
+async function getAll(collection) {
+  const snap = await db.collection(collection).get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function getAllWhere(collection, field, op, value) {
+  const snap = await db.collection(collection).where(field, op, value).get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function getOneWhere(collection, field, op, value) {
+  const snap = await db.collection(collection).where(field, op, value).limit(1).get();
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() };
+}
+
+async function deleteWhere(collection, field, op, value) {
+  const snap = await db.collection(collection).where(field, op, value).get();
+  if (snap.empty) return;
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
+async function getFriends(username) {
+  const all = await getAllWhere('friends', 'username', '==', username);
+  return all.map(f => f.friendName);
+}
+
+async function getChatMessages() {
+  const snap = await db.collection('chat_messages').orderBy('timestamp', 'desc').limit(100).get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
+}
+
+async function getPrivateMessages(displayName) {
+  const sent = await getAllWhere('private_messages', 'fromUser', '==', displayName);
+  const received = await getAllWhere('private_messages', 'to', '==', displayName);
+  const map = new Map();
+  [...sent, ...received].forEach(m => { if (!map.has(m.id)) map.set(m.id, m); });
+  return Array.from(map.values()).sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
+}
+
+async function getGuildData() {
+  const guilds = await getAll('guilds');
+  const result = [];
+  for (const g of guilds) {
+    const members = await getAllWhere('guild_members', 'guildId', '==', g.id);
+    const requests = await getAllWhere('guild_pending_requests', 'guildId', '==', g.id);
+    result.push({
+      id: g.id, name: g.name, emoji: g.emoji,
+      memberNames: members.map(m => m.username),
+      maxMembers: g.maxMembers || 10, level: g.level || 1, xp: g.xp || 0,
+      chef: g.chef, chefAdjoint: g.chefAdjoint || null,
+      treasury: g.treasury || 0, entryFee: g.entryFee || 50, payoutPercentage: g.payoutPercentage || 10,
+      pendingRequests: requests.map(r => r.username),
+      lastPayoutDate: g.lastPayoutDate || '',
+      pendingChefTransfer: g.pendingChefTransfer || null,
+      pendingChefTransferDate: g.pendingChefTransferDate || null,
+      guildMissions: [], guildMissionsDate: '',
+    });
+  }
+  return result;
+}
+
+async function getBackpack(username) {
+  const items = await getAllWhere('user_backpack', 'username', '==', username);
+  return items.map(i => ({ id: i.itemId, name: i.itemName, icon: i.itemIcon, type: i.itemType, quantity: i.quantity }));
+}
+
+async function getUserBadges(username) {
+  const allBadges = await getAll('badges');
+  const userBadges = await getAllWhere('user_badges', 'username', '==', username);
+  const map = {};
+  userBadges.forEach(b => { map[b.badgeId] = b; });
+  return allBadges.map(b => {
+    const ub = map[b.id];
+    return { id: b.id, name: b.name, icon: b.icon, description: b.description, unlocked: !!(ub && ub.unlocked), unlockedAt: ub?.unlockedAt || null };
+  });
+}
+
 // ========== AUTH ==========
 
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username?.toLowerCase());
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-    return res.status(401).json({ error: 'Identifiants invalides' });
-  }
-  const token = jwt.sign({ username: user.username, displayName: user.display_name, isAdmin: !!user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { username: user.username, displayName: user.display_name, isAdmin: !!user.is_admin } });
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const doc = await db.collection('users').doc(username?.toLowerCase()).get();
+    if (!doc.exists) return res.status(401).json({ error: 'Identifiants invalides' });
+    const user = doc.data();
+    if (!bcrypt.compareSync(password, user.passwordHash)) return res.status(401).json({ error: 'Identifiants invalides' });
+    const token = jwt.sign({ username: doc.id, displayName: user.displayName, isAdmin: !!user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { username: doc.id, displayName: user.displayName, isAdmin: !!user.isAdmin } });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/auth/register', (req, res) => {
-  const { username, password, displayName, isAdmin, classe, dateNaissance } = req.body;
-  const uname = username?.toLowerCase().trim();
-  if (!uname || !password || !displayName) return res.status(400).json({ error: 'Champs requis manquants' });
-  if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(uname)) {
-    return res.status(409).json({ error: 'Utilisateur déjà existant' });
-  }
-  const hash = bcrypt.hashSync(password, 10);
-  db.prepare(`INSERT INTO users (username, password_hash, display_name, is_admin, classe, date_naissance) VALUES (?, ?, ?, ?, ?, ?)`)
-    .run(uname, hash, displayName.trim(), isAdmin ? 1 : 0, classe || '', dateNaissance || '');
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, displayName, isAdmin } = req.body;
+    const uname = username?.toLowerCase().trim();
+    if (!uname || !password || !displayName) return res.status(400).json({ error: 'Champs requis manquants' });
+    const existing = await db.collection('users').doc(uname).get();
+    if (existing.exists) return res.status(409).json({ error: 'Utilisateur déjà existant' });
 
-  for (let day = 1; day <= 7; day++) {
-    const coins = day === 7 ? 100 : 10 + (day - 1) * 5;
-    const xp = day === 7 ? 100 : 10 + (day - 1) * 5;
-    const icon = day >= 6 ? '💎' : day >= 4 ? '⚡' : '🪙';
-    db.prepare('INSERT OR IGNORE INTO daily_rewards (username, day, coins, xp, icon) VALUES (?, ?, ?, ?, ?)').run(uname, day, coins, xp, icon);
-  }
+    await db.collection('users').doc(uname).set({
+      passwordHash: bcrypt.hashSync(password, 10), displayName: displayName.trim(),
+      isAdmin: isAdmin ? 1 : 0, avatar: '', theme: 'default', equippedDecoration: null,
+      coins: 500, totalXp: 0, hp: 100, maxHp: 100, force: 10, statPoints: 0,
+      streak: 0, lastLoginDate: '', boostXpUntil: '', shieldUntil: '',
+      timeBonus: false, consultedChapters: [], purchasedItems: [],
+      createdAt: new Date().toISOString(),
+    });
 
-  db.prepare('INSERT OR IGNORE INTO training_state (username) VALUES (?)').run(uname);
+    const rewards = [];
+    for (let day = 1; day <= 7; day++) {
+      rewards.push({ day, coins: day === 7 ? 100 : 10 + (day - 1) * 5, xp: day === 7 ? 100 : 10 + (day - 1) * 5, icon: day >= 6 ? '💎' : day >= 4 ? '⚡' : '🪙', claimed: false });
+    }
+    await db.collection('daily_rewards').doc(uname).set({ rewards });
+    await db.collection('training_state').doc(uname).set({ todayCount: 0, lastResetDate: '' });
 
-  const token = jwt.sign({ username: uname, displayName: displayName.trim(), isAdmin: !!isAdmin }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { username: uname, displayName: displayName.trim(), isAdmin: !!isAdmin } });
+    const token = jwt.sign({ username: uname, displayName: displayName.trim(), isAdmin: !!isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { username: uname, displayName: displayName.trim(), isAdmin: !!isAdmin } });
+  } catch (err) { console.error('Register error:', err); res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.get('/api/auth/me', auth, (req, res) => {
-  const user = db.prepare('SELECT username, display_name, is_admin, classe, date_naissance FROM users WHERE username = ?').get(req.user.username);
-  if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
-  res.json({ username: user.username, displayName: user.display_name, isAdmin: !!user.is_admin, classe: user.classe, dateNaissance: user.date_naissance });
+app.get('/api/auth/me', auth, async (req, res) => {
+  try {
+    const doc = await db.collection('users').doc(req.user.username).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    const u = doc.data();
+    res.json({ username: doc.id, displayName: u.displayName, isAdmin: !!u.isAdmin });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== GAME STATE ==========
 
-app.get('/api/state', auth, (req, res) => {
+app.get('/api/state', auth, async (req, res) => {
   try {
     const u = req.user.username;
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(u);
-    if (!user) return res.status(404).json({ error: 'Non trouvé' });
+    const userDoc = await db.collection('users').doc(u).get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'Non trouvé' });
+    const user = userDoc.data();
 
-    const backpack = db.prepare('SELECT item_id as id, item_name as name, item_icon as icon, item_type as type, quantity FROM user_backpack WHERE username = ?').all(u);
-    const userBadges = db.prepare('SELECT b.id, b.name, b.icon, b.description, ub.unlocked, ub.unlocked_at FROM badges b LEFT JOIN user_badges ub ON b.id = ub.badge_id AND ub.username = ?').all(u);
-    const friends = db.prepare('SELECT friend_name FROM friends WHERE username = ?').all(u).map(r => r.friend_name);
-    const chatMessages = db.prepare('SELECT id, username, message, timestamp FROM chat_messages ORDER BY id DESC LIMIT 100').all().reverse();
-    const displayName = user.display_name;
-    const privateMessages = db.prepare('SELECT id, from_user, "to", message, timestamp FROM private_messages WHERE from_user = ? OR "to" = ? ORDER BY id').all(displayName, displayName);
-    const duelHistory = db.prepare('SELECT id, opponent, opponent_avatar, result, date, xp_gained, coins_gained FROM duel_history WHERE username = ? ORDER BY id DESC LIMIT 20').all(u);
-    const dailyRewards = db.prepare('SELECT day, coins, xp, icon, claimed FROM daily_rewards WHERE username = ? ORDER BY day').all(u);
-    const training = db.prepare('SELECT today_count, last_reset_date FROM training_state WHERE username = ?').get(u);
+    const [backpack, userBadges, friends, chatMessages, privateMessages, guilds] = await Promise.all([
+      getBackpack(u), getUserBadges(u), getFriends(u), getChatMessages(), getPrivateMessages(user.displayName), getGuildData(),
+    ]);
 
-    const guildMember = db.prepare('SELECT guild_id FROM guild_members WHERE username = ?').get(u);
-    let guildState = { myGuildId: null, guilds: [] };
-    const allGuilds = db.prepare(`
-      SELECT g.*, GROUP_CONCAT(gm.username) as member_names
-      FROM guilds g LEFT JOIN guild_members gm ON g.id = gm.guild_id
-      GROUP BY g.id
-    `).all();
-    guildState.guilds = allGuilds.map(g => ({
-      id: g.id, name: g.name, emoji: g.emoji, memberNames: g.member_names ? g.member_names.split(',') : [],
-      maxMembers: g.max_members, level: g.level, xp: g.xp, chef: g.chef, chefAdjoint: g.chef_adjoint,
-      treasury: g.treasury, entryFee: g.entry_fee, payoutPercentage: g.payout_percentage,
-      pendingRequests: db.prepare('SELECT username FROM guild_pending_requests WHERE guild_id = ?').all(g.id).map(r => r.username),
-      lastPayoutDate: g.last_payout_date, pendingChefTransfer: g.pending_chef_transfer,
-      pendingChefTransferDate: g.pending_chef_transfer_date,
-      guildMissions: [],
-      guildMissionsDate: ''
-    }));
-    if (guildMember) guildState.myGuildId = guildMember.guild_id;
+    const myGuildMember = await getOneWhere('guild_members', 'username', '==', u);
+    const myGuildId = myGuildMember ? myGuildMember.guildId : null;
+
+    const dailyDoc = await db.collection('daily_rewards').doc(u).get();
+    const dailyRewards = dailyDoc.exists ? (dailyDoc.data().rewards || []) : [];
+
+    const trainingDoc = await db.collection('training_state').doc(u).get();
+    const training = trainingDoc.exists ? trainingDoc.data() : { todayCount: 0, lastResetDate: '' };
 
     res.json({
       userData: {
-        name: user.display_name, hp: user.hp, maxHp: user.max_hp, force: user.force,
-        totalXP: user.total_xp, coins: user.coins, streak: user.streak,
-        lastLoginDate: user.last_login_date, consultedChapters: JSON.parse(user.consulted_chapters || '[]'),
-        purchasedItems: JSON.parse(user.purchased_items || '[]'), statPoints: user.stat_points,
-        backpack, theme: user.theme || 'default', boostXPUntil: user.boost_xp_until || '',
-        avatar: user.avatar || '', equippedDecoration: user.equipped_decoration,
-        shieldUntil: user.shield_until || '', timeBonus: !!user.time_bonus
+        name: user.displayName, hp: user.hp || 100, maxHp: user.maxHp || 100, force: user.force || 10,
+        totalXP: user.totalXp || 0, coins: user.coins ?? 500, streak: user.streak || 0,
+        lastLoginDate: user.lastLoginDate || '', consultedChapters: user.consultedChapters || [],
+        purchasedItems: user.purchasedItems || [], statPoints: user.statPoints || 0,
+        backpack, theme: user.theme || 'default', boostXPUntil: user.boostXpUntil || '',
+        avatar: user.avatar || '', equippedDecoration: user.equippedDecoration || null,
+        shieldUntil: user.shieldUntil || '', timeBonus: !!user.timeBonus,
       },
       missions: [], quizState: { attempts: [], todayQuizCount: 0, lastResetDate: '', lockedQuizzes: {} },
       chatMessages, privateMessages, darkMode: false,
-      duelState: { phase: 'menu', opponent: null, playerHp: user.max_hp, playerMaxHp: user.max_hp, opponentHp: 100, rounds: [], currentRound: 0, timer: 20, baseTime: 20, result: null, todayDuels: 0, lastDuelDate: '', specialReady: false, isTraining: false, rageStreak: 0, rageTicks: 0, healsUsed: 0, consecutiveDefends: 0 },
-      dailyRewards, lastRewardDate: '', trainingState: training || { todayCount: 0, lastResetDate: '' },
-      guildState, duelHistory, badges: userBadges.map(b => ({ ...b, unlocked: !!b.unlocked })), friends
+      duelState: { phase: 'menu', opponent: null, playerHp: user.maxHp || 100, playerMaxHp: user.maxHp || 100, opponentHp: 100, rounds: [], currentRound: 0, timer: 20, baseTime: 20, result: null, todayDuels: 0, lastDuelDate: '', specialReady: false, isTraining: false, rageStreak: 0, rageTicks: 0, healsUsed: 0, consecutiveDefends: 0 },
+      dailyRewards, lastRewardDate: '', trainingState: training,
+      guildState: { myGuildId, guilds }, duelHistory: [], badges: userBadges, friends,
     });
-  } catch (err) {
-    console.error('State error:', err);
-    res.status(500).json({ error: String(err.message || err) });
-  }
+  } catch (err) { console.error('State error:', err); res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/state', auth, (req, res) => {
-  const u = req.user.username;
-  const s = req.body;
-  if (!s.userData) return res.status(400).json({ error: 'Données invalides' });
+app.post('/api/state', auth, async (req, res) => {
+  try {
+    const u = req.user.username;
+    const s = req.body;
+    if (!s.userData) return res.status(400).json({ error: 'Données invalides' });
 
-  db.prepare(`UPDATE users SET coins=?, total_xp=?, hp=?, max_hp=?, force=?, stat_points=?, streak=?,
-    last_login_date=?, boost_xp_until=?, shield_until=?, time_bonus=?, avatar=?, theme=?,
-    equipped_decoration=?, consulted_chapters=?, purchased_items=? WHERE username=?`)
-    .run(s.userData.coins, s.userData.totalXP, s.userData.hp, s.userData.maxHp, s.userData.force,
-      s.userData.statPoints, s.userData.streak, s.userData.lastLoginDate, s.userData.boostXPUntil || '',
-      s.userData.shieldUntil || '', s.userData.timeBonus ? 1 : 0, s.userData.avatar || '',
-      s.userData.theme || 'default', s.userData.equippedDecoration ?? null,
-      JSON.stringify(s.userData.consultedChapters || []), JSON.stringify(s.userData.purchasedItems || []), u);
+    const batch = db.batch();
+    batch.update(db.collection('users').doc(u), {
+      coins: s.userData.coins, totalXp: s.userData.totalXP, hp: s.userData.hp, maxHp: s.userData.maxHp,
+      force: s.userData.force, statPoints: s.userData.statPoints, streak: s.userData.streak,
+      lastLoginDate: s.userData.lastLoginDate, boostXpUntil: s.userData.boostXPUntil || '',
+      shieldUntil: s.userData.shieldUntil || '', timeBonus: !!s.userData.timeBonus,
+      avatar: s.userData.avatar || '', theme: s.userData.theme || 'default',
+      equippedDecoration: s.userData.equippedDecoration ?? null,
+      consultedChapters: s.userData.consultedChapters || [],
+      purchasedItems: s.userData.purchasedItems || [],
+    });
 
-  db.prepare('DELETE FROM user_backpack WHERE username = ?').run(u);
-  const insertBp = db.prepare('INSERT INTO user_backpack (username, item_id, item_name, item_icon, item_type, quantity) VALUES (?, ?, ?, ?, ?, ?)');
-  for (const item of (s.userData.backpack || [])) {
-    insertBp.run(u, item.id, item.name, item.icon, item.type, item.quantity);
-  }
-
-  if (s.badges) {
-    for (const badge of s.badges) {
-      db.prepare('INSERT OR REPLACE INTO user_badges (username, badge_id, unlocked, unlocked_at) VALUES (?, ?, ?, ?)')
-        .run(u, badge.id, badge.unlocked ? 1 : 0, badge.unlockedAt || null);
+    const bpSnap = await db.collection('user_backpack').where('username', '==', u).get();
+    bpSnap.docs.forEach(d => batch.delete(d.ref));
+    for (const item of (s.userData.backpack || [])) {
+      batch.set(db.collection('user_backpack').doc(), { username: u, itemId: item.id, itemName: item.name, itemIcon: item.icon, itemType: item.type, quantity: item.quantity });
     }
-  }
 
-  if (s.friends) {
-    db.prepare('DELETE FROM friends WHERE username = ?').run(u);
-    const insertFriend = db.prepare('INSERT OR IGNORE INTO friends (username, friend_name) VALUES (?, ?)');
-    for (const f of s.friends) insertFriend.run(u, f);
-  }
+    if (s.badges) {
+      for (const badge of s.badges) {
+        batch.set(db.collection('user_badges').doc(`${u}_${badge.id}`), { username: u, badgeId: badge.id, unlocked: !!badge.unlocked, unlockedAt: badge.unlockedAt || null });
+      }
+    }
 
-  if (s.trainingState) {
-    db.prepare('INSERT OR REPLACE INTO training_state (username, today_count, last_reset_date) VALUES (?, ?, ?)')
-      .run(u, s.trainingState.todayCount, s.trainingState.lastResetDate || '');
-  }
+    if (s.friends) {
+      const frSnap = await db.collection('friends').where('username', '==', u).get();
+      frSnap.docs.forEach(d => batch.delete(d.ref));
+      for (const f of s.friends) batch.set(db.collection('friends').doc(), { username: u, friendName: f });
+    }
 
-  res.json({ ok: true });
+    if (s.trainingState) {
+      batch.set(db.collection('training_state').doc(u), { todayCount: s.trainingState.todayCount, lastResetDate: s.trainingState.lastResetDate || '' });
+    }
+
+    await batch.commit();
+    res.json({ ok: true });
+  } catch (err) { console.error('State save error:', err); res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== QUESTIONS ==========
 
-app.get('/api/questions', (req, res) => {
-  const questions = db.prepare('SELECT id, question, option_a, option_b, option_c, option_d, correct_answer, explanation FROM questions').all();
-  res.json(questions.map(q => ({ id: q.id, question: q.question, options: [q.option_a, q.option_b, q.option_c, q.option_d], correctAnswer: q.correct_answer, explanation: q.explanation })));
+app.get('/api/questions', async (req, res) => {
+  try { res.json(await getAll('questions')); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/questions', auth, adminOnly, (req, res) => {
-  const { question, options, correctAnswer, explanation } = req.body;
-  if (!question || !options || options.length < 2) return res.status(400).json({ error: 'Invalid' });
-  const r = db.prepare('INSERT INTO questions (question, option_a, option_b, option_c, option_d, correct_answer, explanation) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(question, options[0] || '', options[1] || '', options[2] || '', options[3] || '', correctAnswer || 0, explanation || '');
-  res.json({ id: r.lastInsertRowid });
+app.post('/api/questions', auth, adminOnly, async (req, res) => {
+  try {
+    const { question, options, correctAnswer, explanation } = req.body;
+    if (!question || !options || options.length < 2) return res.status(400).json({ error: 'Invalid' });
+    const ref = await db.collection('questions').add({ question, options, correctAnswer: correctAnswer || 0, explanation: explanation || '' });
+    res.json({ id: ref.id });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.put('/api/questions/:id', auth, adminOnly, (req, res) => {
-  const { question, options, correctAnswer, explanation } = req.body;
-  db.prepare('UPDATE questions SET question=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_answer=?, explanation=? WHERE id=?')
-    .run(question, options?.[0] || '', options?.[1] || '', options?.[2] || '', options?.[3] || '', correctAnswer || 0, explanation || '', req.params.id);
-  res.json({ ok: true });
+app.put('/api/questions/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const { question, options, correctAnswer, explanation } = req.body;
+    await db.collection('questions').doc(req.params.id).update({ question, options, correctAnswer: correctAnswer || 0, explanation: explanation || '' });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.delete('/api/questions/:id', auth, adminOnly, (req, res) => {
-  db.prepare('DELETE FROM questions WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
+app.delete('/api/questions/:id', auth, adminOnly, async (req, res) => {
+  try { await db.collection('questions').doc(req.params.id).delete(); res.json({ ok: true }); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== SHOP ITEMS ==========
 
-app.get('/api/shop', (req, res) => {
-  res.json(db.prepare('SELECT * FROM shop_items').all());
+app.get('/api/shop', async (req, res) => {
+  try { res.json(await getAll('shop_items')); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/shop', auth, adminOnly, (req, res) => {
-  const { name, icon, type, price, description, themeId } = req.body;
-  const r = db.prepare('INSERT INTO shop_items (name, icon, type, price, description, theme_id) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(name, icon, type, price, description || '', themeId || null);
-  res.json({ id: r.lastInsertRowid });
+app.post('/api/shop', auth, adminOnly, async (req, res) => {
+  try {
+    const { name, icon, type, price, description, themeId } = req.body;
+    const ref = await db.collection('shop_items').add({ name, icon, type, price, description: description || '', themeId: themeId || null });
+    res.json({ id: ref.id });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.put('/api/shop/:id', auth, adminOnly, (req, res) => {
-  const { name, icon, type, price, description, themeId } = req.body;
-  db.prepare('UPDATE shop_items SET name=?, icon=?, type=?, price=?, description=?, theme_id=? WHERE id=?')
-    .run(name, icon, type, price, description || '', themeId || null, req.params.id);
-  res.json({ ok: true });
+app.put('/api/shop/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const { name, icon, type, price, description, themeId } = req.body;
+    await db.collection('shop_items').doc(req.params.id).update({ name, icon, type, price, description: description || '', themeId: themeId || null });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.delete('/api/shop/:id', auth, adminOnly, (req, res) => {
-  db.prepare('DELETE FROM shop_items WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
+app.delete('/api/shop/:id', auth, adminOnly, async (req, res) => {
+  try { await db.collection('shop_items').doc(req.params.id).delete(); res.json({ ok: true }); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== BADGES ==========
 
-app.get('/api/badges', (req, res) => {
-  res.json(db.prepare('SELECT * FROM badges').all());
+app.get('/api/badges', async (req, res) => {
+  try { res.json(await getAll('badges')); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/badges', auth, adminOnly, (req, res) => {
-  const { id, name, icon, description } = req.body;
-  db.prepare('INSERT OR REPLACE INTO badges (id, name, icon, description) VALUES (?, ?, ?, ?)').run(id, name, icon, description || '');
-  res.json({ ok: true });
+app.post('/api/badges', auth, adminOnly, async (req, res) => {
+  try {
+    const { id, name, icon, description } = req.body;
+    await db.collection('badges').doc(id).set({ name, icon, description: description || '' });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.put('/api/badges/:id', auth, adminOnly, (req, res) => {
-  const { name, icon, description } = req.body;
-  db.prepare('UPDATE badges SET name=?, icon=?, description=? WHERE id=?').run(name, icon, description || '', req.params.id);
-  res.json({ ok: true });
+app.put('/api/badges/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const { name, icon, description } = req.body;
+    await db.collection('badges').doc(req.params.id).update({ name, icon, description: description || '' });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.delete('/api/badges/:id', auth, adminOnly, (req, res) => {
-  db.prepare('DELETE FROM badges WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
+app.delete('/api/badges/:id', auth, adminOnly, async (req, res) => {
+  try { await db.collection('badges').doc(req.params.id).delete(); res.json({ ok: true }); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== ACCOUNTS (Admin) ==========
 
-app.get('/api/accounts', auth, adminOnly, (req, res) => {
-  const users = db.prepare('SELECT username, display_name, is_admin, classe, date_naissance FROM users').all();
-  res.json(users.map(u => ({ username: u.username, displayName: u.display_name, isAdmin: !!u.is_admin, classe: u.classe, dateNaissance: u.date_naissance })));
+app.get('/api/accounts', auth, adminOnly, async (req, res) => {
+  try {
+    const users = await getAll('users');
+    res.json(users.map(u => ({ username: u.id, displayName: u.displayName, isAdmin: !!u.isAdmin })));
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.put('/api/accounts/:username', auth, adminOnly, (req, res) => {
-  const { displayName, password, isAdmin, classe, dateNaissance } = req.body;
-  if (password) {
-    const hash = bcrypt.hashSync(password, 10);
-    db.prepare('UPDATE users SET display_name=?, password_hash=?, is_admin=?, classe=?, date_naissance=? WHERE username=?')
-      .run(displayName, hash, isAdmin ? 1 : 0, classe || '', dateNaissance || '', req.params.username);
-  } else {
-    db.prepare('UPDATE users SET display_name=?, is_admin=?, classe=?, date_naissance=? WHERE username=?')
-      .run(displayName, isAdmin ? 1 : 0, classe || '', dateNaissance || '', req.params.username);
-  }
-  res.json({ ok: true });
+app.put('/api/accounts/:username', auth, adminOnly, async (req, res) => {
+  try {
+    const { displayName, password, isAdmin } = req.body;
+    const update = { displayName, isAdmin: isAdmin ? 1 : 0 };
+    if (password) update.passwordHash = bcrypt.hashSync(password, 10);
+    await db.collection('users').doc(req.params.username).update(update);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.delete('/api/accounts/:username', auth, adminOnly, (req, res) => {
-  db.prepare('DELETE FROM users WHERE username = ?').run(req.params.username);
-  res.json({ ok: true });
+app.delete('/api/accounts/:username', auth, adminOnly, async (req, res) => {
+  try { await db.collection('users').doc(req.params.username).delete(); res.json({ ok: true }); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== LEADERBOARD ==========
 
-app.get('/api/leaderboard', (req, res) => {
-  const users = db.prepare('SELECT username, display_name, total_xp, avatar FROM users WHERE is_admin = 0 ORDER BY total_xp DESC LIMIT 50').all();
-  res.json(users.map((u, i) => ({ rank: i + 1, name: u.display_name, xp: u.total_xp, avatar: u.avatar || '👤' })));
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const users = await getAll('users');
+    const ranked = users.filter(u => !u.isAdmin).sort((a, b) => (b.totalXp || 0) - (a.totalXp || 0)).slice(0, 50);
+    res.json(ranked.map((u, i) => ({ rank: i + 1, name: u.displayName, xp: u.totalXp || 0, avatar: u.avatar || '👤' })));
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== CHAT ==========
 
-app.get('/api/chat', auth, (req, res) => {
-  const msgs = db.prepare('SELECT id, username, message, timestamp FROM chat_messages ORDER BY id DESC LIMIT 100').all().reverse();
-  res.json(msgs);
+app.get('/api/chat', auth, async (req, res) => {
+  try { res.json(await getChatMessages()); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/chat', auth, (req, res) => {
-  const { message } = req.body;
-  if (!message?.trim()) return res.status(400).json({ error: 'Message vide' });
-  const r = db.prepare('INSERT INTO chat_messages (username, message) VALUES (?, ?)').run(req.user.displayName, message.trim());
-  res.json({ id: r.lastInsertRowid, username: req.user.displayName, message: message.trim(), timestamp: new Date().toISOString() });
+app.post('/api/chat', auth, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ error: 'Message vide' });
+    const ref = await db.collection('chat_messages').add({ username: req.user.displayName, message: message.trim(), timestamp: new Date().toISOString() });
+    res.json({ id: ref.id, username: req.user.displayName, message: message.trim(), timestamp: new Date().toISOString() });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== PRIVATE MESSAGES ==========
 
-app.get('/api/messages/:friend', auth, (req, res) => {
-  const msgs = db.prepare('SELECT id, from_user, "to", message, timestamp FROM private_messages WHERE (from_user=? AND "to"=?) OR (from_user=? AND "to"=?) ORDER BY id').all(req.user.username, req.params.friend, req.params.friend, req.user.username);
-  res.json(msgs);
+app.get('/api/messages/:friend', auth, async (req, res) => {
+  try {
+    const friend = req.params.friend;
+    const me = req.user.displayName;
+    const sent = await getAllWhere('private_messages', 'fromUser', '==', me);
+    const received = await getAllWhere('private_messages', 'to', '==', me);
+    const map = new Map();
+    [...sent, ...received].forEach(m => { if (!map.has(m.id)) map.set(m.id, m); });
+    const msgs = Array.from(map.values()).filter(m => m.fromUser === friend || m.to === friend).sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
+    res.json(msgs);
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/messages/:friend', auth, (req, res) => {
-  const { message } = req.body;
-  if (!message?.trim()) return res.status(400).json({ error: 'Message vide' });
-  const r = db.prepare('INSERT INTO private_messages (from_user, "to", message) VALUES (?, ?, ?)').run(req.user.displayName, req.params.friend, message.trim());
-  res.json({ id: r.lastInsertRowid });
+app.post('/api/messages/:friend', auth, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ error: 'Message vide' });
+    const ref = await db.collection('private_messages').add({ fromUser: req.user.displayName, to: req.params.friend, message: message.trim(), timestamp: new Date().toISOString() });
+    res.json({ id: ref.id });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== FRIENDS ==========
 
-app.get('/api/friends', auth, (req, res) => {
-  const friends = db.prepare('SELECT friend_name FROM friends WHERE username = ?').all(req.user.username).map(r => r.friend_name);
-  res.json(friends);
+app.get('/api/friends', auth, async (req, res) => {
+  try { res.json(await getFriends(req.user.username)); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/friends/:name', auth, (req, res) => {
-  const friendName = req.params.name;
-  if (friendName === req.user.username) return res.status(400).json({ error: 'Impossible de s\'ajouter soi-même' });
-  const existing = db.prepare('SELECT friend_name FROM friends WHERE username = ? AND friend_name = ?').get(req.user.username, friendName);
-  if (existing) return res.json({ ok: true });
-  const count = db.prepare('SELECT COUNT(*) as c FROM friends WHERE username = ?').get(req.user.username).c;
-  if (count >= 50) return res.status(400).json({ error: 'Limite de 50 amis atteinte' });
-  db.prepare('INSERT OR IGNORE INTO friends (username, friend_name) VALUES (?, ?)').run(req.user.username, friendName);
-  res.json({ ok: true });
+app.post('/api/friends/:name', auth, async (req, res) => {
+  try {
+    const friendName = req.params.name;
+    if (friendName === req.user.username) return res.status(400).json({ error: "Impossible de s'ajouter soi-même" });
+    const existing = await getOneWhere('friends', 'username', '==', req.user.username);
+    const existing2 = await getAllWhere('friends', 'username', '==', req.user.username);
+    if (existing2.some(f => f.friendName === friendName)) return res.json({ ok: true });
+    if (existing2.length >= 50) return res.status(400).json({ error: 'Limite de 50 amis atteinte' });
+    await db.collection('friends').add({ username: req.user.username, friendName });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.delete('/api/friends/:name', auth, (req, res) => {
-  db.prepare('DELETE FROM friends WHERE username = ? AND friend_name = ?').run(req.user.username, req.params.name);
-  res.json({ ok: true });
+app.delete('/api/friends/:name', auth, async (req, res) => {
+  try {
+    const all = await getAllWhere('friends', 'username', '==', req.user.username);
+    const batch = db.batch();
+    all.filter(f => f.friendName === req.params.name).forEach(f => batch.delete(db.collection('friends').doc(f.id)));
+    await batch.commit();
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.get('/api/users', auth, (req, res) => {
-  const users = db.prepare('SELECT display_name as name, avatar FROM users').all();
-  res.json(users);
+app.get('/api/users', auth, async (req, res) => {
+  try {
+    const users = await getAll('users');
+    res.json(users.map(u => ({ name: u.displayName, avatar: u.avatar || '👤' })));
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== GUILDS ==========
 
-app.get('/api/guilds', (req, res) => {
-  const allGuilds = db.prepare(`
-    SELECT g.*, GROUP_CONCAT(gm.username) as member_names
-    FROM guilds g LEFT JOIN guild_members gm ON g.id = gm.guild_id
-    GROUP BY g.id
-  `).all();
-  res.json(allGuilds.map(g => ({
-    id: g.id, name: g.name, emoji: g.emoji, memberNames: g.member_names ? g.member_names.split(',') : [],
-    maxMembers: g.max_members, level: g.level, xp: g.xp, chef: g.chef, chefAdjoint: g.chef_adjoint,
-    treasury: g.treasury, entryFee: g.entry_fee, payoutPercentage: g.payout_percentage,
-    pendingRequests: db.prepare('SELECT username FROM guild_pending_requests WHERE guild_id = ?').all(g.id).map(r => r.username),
-    lastPayoutDate: g.last_payout_date, pendingChefTransfer: g.pending_chef_transfer,
-    pendingChefTransferDate: g.pending_chef_transfer_date,
-  })));
+app.get('/api/guilds', async (req, res) => {
+  try { res.json(await getGuildData()); } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/guilds', auth, (req, res) => {
-  const { name, emoji, entryFee } = req.body;
-  if (!name || !emoji) return res.status(400).json({ error: 'Nom et emoji requis' });
-  const user = db.prepare('SELECT coins, display_name FROM users WHERE username = ?').get(req.user.username);
-  if (!user || user.coins < 10000) return res.status(400).json({ error: '10 000 pièces requises' });
-  const existing = db.prepare('SELECT guild_id FROM guild_members WHERE username = ?').get(req.user.username);
-  if (existing) return res.status(400).json({ error: 'Déjà dans une guilde' });
-  db.prepare('UPDATE users SET coins = coins - 10000 WHERE username = ?').run(req.user.username);
-  const r = db.prepare('INSERT INTO guilds (name, emoji, chef, entry_fee) VALUES (?, ?, ?, ?)').run(name, emoji, user.display_name, entryFee || 50);
-  db.prepare('INSERT INTO guild_members (guild_id, username) VALUES (?, ?)').run(Number(r.lastInsertRowid), req.user.username);
-  res.json({ id: Number(r.lastInsertRowid) });
+app.post('/api/guilds', auth, async (req, res) => {
+  try {
+    const { name, emoji, entryFee } = req.body;
+    if (!name || !emoji) return res.status(400).json({ error: 'Nom et emoji requis' });
+    const userDoc = await db.collection('users').doc(req.user.username).get();
+    const user = userDoc.data();
+    if (!user || (user.coins || 0) < 10000) return res.status(400).json({ error: '10 000 pièces requises' });
+    const existing = await getOneWhere('guild_members', 'username', '==', req.user.username);
+    if (existing) return res.status(400).json({ error: 'Déjà dans une guilde' });
+    await db.collection('users').doc(req.user.username).update({ coins: (user.coins || 0) - 10000 });
+    const ref = await db.collection('guilds').add({ name, emoji, chef: user.displayName, chefAdjoint: null, maxMembers: 10, level: 1, xp: 0, treasury: 0, entryFee: entryFee || 50, payoutPercentage: 10, lastPayoutDate: '', pendingChefTransfer: null, pendingChefTransferDate: null });
+    await db.collection('guild_members').add({ guildId: ref.id, username: req.user.username });
+    res.json({ id: ref.id });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/guilds/:id/join', auth, (req, res) => {
-  const gid = Number(req.params.id);
-  const guild = db.prepare('SELECT * FROM guilds WHERE id = ?').get(gid);
-  if (!guild) return res.status(404).json({ error: 'Guilde introuvable' });
-  const existing = db.prepare('SELECT guild_id FROM guild_members WHERE username = ?').get(req.user.username);
-  if (existing) return res.status(400).json({ error: 'Déjà dans une guilde' });
-  const user = db.prepare('SELECT coins, display_name FROM users WHERE username = ?').get(req.user.username);
-  if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
-  const pending = db.prepare('SELECT username FROM guild_pending_requests WHERE guild_id = ? AND username = ?').get(gid, user.display_name);
-  if (pending) return res.json({ ok: true });
-  db.prepare('INSERT OR IGNORE INTO guild_pending_requests (guild_id, username) VALUES (?, ?)').run(gid, user.display_name);
-  res.json({ ok: true });
+app.post('/api/guilds/:id/join', auth, async (req, res) => {
+  try {
+    const gid = req.params.id;
+    const guildDoc = await db.collection('guilds').doc(gid).get();
+    if (!guildDoc.exists) return res.status(404).json({ error: 'Guilde introuvable' });
+    const existing = await getOneWhere('guild_members', 'username', '==', req.user.username);
+    if (existing) return res.status(400).json({ error: 'Déjà dans une guilde' });
+    const pending = await getAllWhere('guild_pending_requests', 'guildId', '==', gid);
+    if (pending.some(r => r.username === req.user.displayName)) return res.json({ ok: true });
+    await db.collection('guild_pending_requests').add({ guildId: gid, username: req.user.displayName });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/guilds/:id/leave', auth, (req, res) => {
-  const gid = Number(req.params.id);
-  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
-  db.prepare('DELETE FROM guild_members WHERE guild_id = ? AND username = ?').run(gid, req.user.username);
-  const members = db.prepare('SELECT username FROM guild_members WHERE guild_id = ?').all(gid);
-  if (members.length === 0) {
-    db.prepare('DELETE FROM guilds WHERE id = ?').run(gid);
-  } else if (user) {
-    const guild = db.prepare('SELECT chef, chef_adjoint FROM guilds WHERE id = ?').get(gid);
-    if (guild) {
-      if (guild.chef === user.display_name) {
-        db.prepare('UPDATE guilds SET chef = ? WHERE id = ?').run(members[0].username, gid);
-      }
-      if (guild.chef_adjoint === user.display_name) {
-        db.prepare('UPDATE guilds SET chef_adjoint = NULL WHERE id = ?').run(gid);
+app.post('/api/guilds/:id/leave', auth, async (req, res) => {
+  try {
+    const gid = req.params.id;
+    const userDoc = await db.collection('users').doc(req.user.username).get();
+    const displayName = userDoc.data()?.displayName;
+    const members = await getAllWhere('guild_members', 'guildId', '==', gid);
+    const me = members.find(m => m.username === req.user.username);
+    if (me) await db.collection('guild_members').doc(me.id).delete();
+    const remaining = members.filter(m => m.username !== req.user.username);
+    if (remaining.length === 0) {
+      await db.collection('guilds').doc(gid).delete();
+    } else {
+      const guildDoc = await db.collection('guilds').doc(gid).get();
+      if (guildDoc.exists) {
+        const guild = guildDoc.data();
+        const updates = {};
+        if (guild.chef === displayName) updates.chef = remaining[0].username;
+        if (guild.chefAdjoint === displayName) updates.chefAdjoint = null;
+        if (Object.keys(updates).length > 0) await db.collection('guilds').doc(gid).update(updates);
       }
     }
-  }
-  res.json({ ok: true });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/guilds/:id/accept', auth, (req, res) => {
-  const gid = Number(req.params.id);
-  const { name } = req.body;
-  const guild = db.prepare('SELECT chef, chef_adjoint, entry_fee FROM guilds WHERE id = ?').get(gid);
-  if (!guild) return res.status(404).json({ error: 'Guilde introuvable' });
-  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
-  if (guild.chef !== user?.display_name && guild.chef_adjoint !== user?.display_name) return res.status(403).json({ error: 'Pas chef' });
-  db.prepare('DELETE FROM guild_pending_requests WHERE guild_id = ? AND username = ?').run(gid, name);
-  const targetUser = db.prepare('SELECT username FROM users WHERE display_name = ?').get(name);
-  if (targetUser) {
-    db.prepare('INSERT OR IGNORE INTO guild_members (guild_id, username) VALUES (?, ?)').run(gid, targetUser.username);
-    db.prepare('UPDATE guilds SET treasury = treasury + ? WHERE id = ?').run(guild.entry_fee, gid);
-  }
-  res.json({ ok: true });
+app.post('/api/guilds/:id/accept', auth, async (req, res) => {
+  try {
+    const gid = req.params.id;
+    const { name } = req.body;
+    const guildDoc = await db.collection('guilds').doc(gid).get();
+    if (!guildDoc.exists) return res.status(404).json({ error: 'Guilde introuvable' });
+    const guild = guildDoc.data();
+    const userDoc = await db.collection('users').doc(req.user.username).get();
+    const dn = userDoc.data()?.displayName;
+    if (guild.chef !== dn && guild.chefAdjoint !== dn) return res.status(403).json({ error: 'Pas chef' });
+    const pending = await getAllWhere('guild_pending_requests', 'guildId', '==', gid);
+    const batch = db.batch();
+    pending.filter(r => r.username === name).forEach(r => batch.delete(db.collection('guild_pending_requests').doc(r.id)));
+    const target = await getOneWhere('users_displaynames', 'displayName', '==', name);
+    const allUsers = await getAll('users');
+    const targetUser = allUsers.find(u => u.displayName === name);
+    if (targetUser) {
+      batch.set(db.collection('guild_members').doc(), { guildId: gid, username: targetUser.id });
+      batch.update(db.collection('guilds').doc(gid), { treasury: (guild.treasury || 0) + (guild.entryFee || 50) });
+    }
+    await batch.commit();
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/guilds/:id/reject', auth, (req, res) => {
-  const gid = Number(req.params.id);
-  const { name } = req.body;
-  db.prepare('DELETE FROM guild_pending_requests WHERE guild_id = ? AND username = ?').run(gid, name);
-  res.json({ ok: true });
+app.post('/api/guilds/:id/reject', auth, async (req, res) => {
+  try {
+    const gid = req.params.id;
+    const { name } = req.body;
+    const pending = await getAllWhere('guild_pending_requests', 'guildId', '==', gid);
+    const batch = db.batch();
+    pending.filter(r => r.username === name).forEach(r => batch.delete(db.collection('guild_pending_requests').doc(r.id)));
+    await batch.commit();
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.post('/api/guilds/:id/kick', auth, (req, res) => {
-  const gid = Number(req.params.id);
-  const { name } = req.body;
-  const guild = db.prepare('SELECT chef FROM guilds WHERE id = ?').get(gid);
-  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
-  if (!guild || guild.chef !== user?.display_name) return res.status(403).json({ error: 'Pas chef' });
-  if (name === guild.chef) return res.status(400).json({ error: 'Impossible' });
-  const targetUser = db.prepare('SELECT username FROM users WHERE display_name = ?').get(name);
-  if (targetUser) {
-    db.prepare('DELETE FROM guild_members WHERE guild_id = ? AND username = ?').run(gid, targetUser.username);
-  }
-  res.json({ ok: true });
+app.post('/api/guilds/:id/kick', auth, async (req, res) => {
+  try {
+    const gid = req.params.id;
+    const { name } = req.body;
+    const guildDoc = await db.collection('guilds').doc(gid).get();
+    if (!guildDoc.exists) return res.status(404).json({ error: 'Guilde introuvable' });
+    const guild = guildDoc.data();
+    const userDoc = await db.collection('users').doc(req.user.username).get();
+    if (guild.chef !== userDoc.data()?.displayName) return res.status(403).json({ error: 'Pas chef' });
+    if (name === guild.chef) return res.status(400).json({ error: 'Impossible' });
+    const allUsers = await getAll('users');
+    const target = allUsers.find(u => u.displayName === name);
+    if (target) {
+      const members = await getAllWhere('guild_members', 'guildId', '==', gid);
+      const targetMember = members.find(m => m.username === target.id);
+      if (targetMember) await db.collection('guild_members').doc(targetMember.id).delete();
+    }
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.delete('/api/guilds/:id', auth, (req, res) => {
-  const gid = Number(req.params.id);
-  const guild = db.prepare('SELECT chef FROM guilds WHERE id = ?').get(gid);
-  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
-  if (!guild || guild.chef !== user?.display_name) return res.status(403).json({ error: 'Pas chef' });
-  db.prepare('DELETE FROM guild_members WHERE guild_id = ?').run(gid);
-  db.prepare('DELETE FROM guild_pending_requests WHERE guild_id = ?').run(gid);
-  db.prepare('DELETE FROM guild_missions WHERE guild_id = ?').run(gid);
-  db.prepare('DELETE FROM guilds WHERE id = ?').run(gid);
-  res.json({ ok: true });
+app.delete('/api/guilds/:id', auth, async (req, res) => {
+  try {
+    const gid = req.params.id;
+    const guildDoc = await db.collection('guilds').doc(gid).get();
+    if (!guildDoc.exists) return res.status(404).json({ error: 'Guilde introuvable' });
+    const guild = guildDoc.data();
+    const userDoc = await db.collection('users').doc(req.user.username).get();
+    if (guild.chef !== userDoc.data()?.displayName) return res.status(403).json({ error: 'Pas chef' });
+    const batch = db.batch();
+    const members = await getAllWhere('guild_members', 'guildId', '==', gid);
+    members.forEach(m => batch.delete(db.collection('guild_members').doc(m.id)));
+    const requests = await getAllWhere('guild_pending_requests', 'guildId', '==', gid);
+    requests.forEach(r => batch.delete(db.collection('guild_pending_requests').doc(r.id)));
+    batch.delete(db.collection('guilds').doc(gid));
+    await batch.commit();
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
-app.put('/api/guilds/:id/settings', auth, (req, res) => {
-  const gid = Number(req.params.id);
-  const { entryFee, payoutPercentage, chefAdjoint } = req.body;
-  const guild = db.prepare('SELECT chef FROM guilds WHERE id = ?').get(gid);
-  const user = db.prepare('SELECT display_name FROM users WHERE username = ?').get(req.user.username);
-  if (!guild || guild.chef !== user?.display_name) return res.status(403).json({ error: 'Pas chef' });
-  if (entryFee !== undefined) db.prepare('UPDATE guilds SET entry_fee = ? WHERE id = ?').run(entryFee, gid);
-  if (payoutPercentage !== undefined) db.prepare('UPDATE guilds SET payout_percentage = ? WHERE id = ?').run(payoutPercentage, gid);
-  if (chefAdjoint !== undefined) db.prepare('UPDATE guilds SET chef_adjoint = ? WHERE id = ?').run(chefAdjoint, gid);
-  res.json({ ok: true });
+app.put('/api/guilds/:id/settings', auth, async (req, res) => {
+  try {
+    const gid = req.params.id;
+    const { entryFee, payoutPercentage, chefAdjoint } = req.body;
+    const guildDoc = await db.collection('guilds').doc(gid).get();
+    if (!guildDoc.exists) return res.status(404).json({ error: 'Guilde introuvable' });
+    const guild = guildDoc.data();
+    const userDoc = await db.collection('users').doc(req.user.username).get();
+    if (guild.chef !== userDoc.data()?.displayName) return res.status(403).json({ error: 'Pas chef' });
+    const updates = {};
+    if (entryFee !== undefined) updates.entryFee = entryFee;
+    if (payoutPercentage !== undefined) updates.payoutPercentage = payoutPercentage;
+    if (chefAdjoint !== undefined) updates.chefAdjoint = chefAdjoint;
+    if (Object.keys(updates).length > 0) await db.collection('guilds').doc(gid).update(updates);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 
 // ========== SHOP PURCHASE ==========
 
-app.post('/api/shop/:id/buy', auth, (req, res) => {
-  const itemId = Number(req.params.id);
-  const item = db.prepare('SELECT * FROM shop_items WHERE id = ?').get(itemId);
-  if (!item) return res.status(404).json({ error: 'Item introuvable' });
-  const user = db.prepare('SELECT coins FROM users WHERE username = ?').get(req.user.username);
-  if (!user || user.coins < item.price) return res.status(400).json({ error: 'Pas assez de pièces' });
-  db.prepare('UPDATE users SET coins = coins - ? WHERE username = ?').run(item.price, req.user.username);
-  const purchased = JSON.parse(db.prepare('SELECT purchased_items FROM users WHERE username = ?').get(req.user.username).purchased_items || '[]');
-  if ((item.type === 'theme' || item.type === 'decoration' || item.type === 'avatar') && !purchased.includes(itemId)) {
-    purchased.push(itemId);
-    db.prepare('UPDATE users SET purchased_items = ? WHERE username = ?').run(JSON.stringify(purchased), req.user.username);
-  }
-  if (item.type === 'consumable' || item.type === 'boost') {
-    let bpId = 'consumable-' + itemId;
-    let bpName = item.name;
-    let bpIcon = item.icon;
-    let bpType = item.type;
-    let qty = 1;
-    const nameLower = item.name.toLowerCase();
-    if (nameLower.includes('pansement')) {
-      bpId = 'bandage'; bpName = 'Pansement'; bpIcon = '🩹'; bpType = 'consumable';
-      const match = item.name.match(/x\s*(\d+)/i);
-      if (match) qty = parseInt(match[1]);
-    } else if (nameLower.includes('second souffle')) {
-      bpId = 'second-souffle'; bpName = 'Second Souffle'; bpIcon = '🔄'; bpType = 'consumable';
-      const match = item.name.match(/x\s*(\d+)/i);
-      if (match) qty = parseInt(match[1]);
-    } else if (item.type === 'boost') {
-      const descLower = (item.description || '').toLowerCase();
-      if (descLower.includes('série') || descLower.includes('streak') || descLower.includes('bouclier')) bpId = 'boost-shield';
-      else if (descLower.includes('temps') || descLower.includes('time')) bpId = 'boost-time';
-      else if (descLower.includes('xp') || descLower.includes('double')) bpId = 'boost-xp';
-      else bpId = 'boost-' + itemId;
-      bpType = 'boost';
+app.post('/api/shop/:id/buy', auth, async (req, res) => {
+  try {
+    const itemId = req.params.id;
+    const itemDoc = await db.collection('shop_items').doc(itemId).get();
+    if (!itemDoc.exists) return res.status(404).json({ error: 'Item introuvable' });
+    const item = itemDoc.data();
+    const userDoc = await db.collection('users').doc(req.user.username).get();
+    const user = userDoc.data();
+    if (!user || (user.coins || 0) < item.price) return res.status(400).json({ error: 'Pas assez de pièces' });
+    const newCoins = (user.coins || 0) - item.price;
+    const purchased = [...(user.purchasedItems || [])];
+    if ((item.type === 'theme' || item.type === 'decoration' || item.type === 'avatar') && !purchased.includes(itemId)) {
+      purchased.push(itemId);
     }
-    const existing = db.prepare('SELECT quantity FROM user_backpack WHERE username = ? AND item_id = ?').get(req.user.username, bpId);
-    if (existing) {
-      db.prepare('UPDATE user_backpack SET quantity = quantity + ? WHERE username = ? AND item_id = ?').run(qty, req.user.username, bpId);
-    } else {
-      db.prepare('INSERT INTO user_backpack (username, item_id, item_name, item_icon, item_type, quantity) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(req.user.username, bpId, bpName, bpIcon, bpType, qty);
+    await db.collection('users').doc(req.user.username).update({ coins: newCoins, purchasedItems: purchased });
+
+    if (item.type === 'consumable' || item.type === 'boost') {
+      let bpId = 'consumable-' + itemId, bpName = item.name, bpIcon = item.icon, bpType = item.type, qty = 1;
+      const nl = item.name.toLowerCase();
+      if (nl.includes('pansement')) { bpId = 'bandage'; bpName = 'Pansement'; bpIcon = '🩹'; bpType = 'consumable'; const m = item.name.match(/x\s*(\d+)/i); if (m) qty = parseInt(m[1]); }
+      else if (nl.includes('second souffle')) { bpId = 'second-souffle'; bpName = 'Second Souffle'; bpIcon = '🔄'; bpType = 'consumable'; const m = item.name.match(/x\s*(\d+)/i); if (m) qty = parseInt(m[1]); }
+      else if (item.type === 'boost') {
+        const dl = (item.description || '').toLowerCase();
+        if (dl.includes('série') || dl.includes('streak') || dl.includes('bouclier')) bpId = 'boost-shield';
+        else if (dl.includes('temps') || dl.includes('time')) bpId = 'boost-time';
+        else if (dl.includes('xp') || dl.includes('double')) bpId = 'boost-xp';
+        else bpId = 'boost-' + itemId;
+        bpType = 'boost';
+      }
+      const existing = await getAllWhere('user_backpack', 'username', '==', req.user.username);
+      const match = existing.find(b => b.itemId === bpId);
+      if (match) { await db.collection('user_backpack').doc(match.id).update({ quantity: (match.quantity || 0) + qty }); }
+      else { await db.collection('user_backpack').add({ username: req.user.username, itemId: bpId, itemName: bpName, itemIcon: bpIcon, itemType: bpType, quantity: qty }); }
     }
-  }
-  res.json({ ok: true, newCoins: user.coins - item.price });
+    res.json({ ok: true, newCoins });
+  } catch (err) { console.error('Shop buy error:', err); res.status(500).json({ error: String(err.message || err) }); }
 });
 
-// ========== CLEANUP & SEED ==========
+// ========== START ==========
 
-db.prepare('DELETE FROM private_messages').run();
-db.prepare('DELETE FROM chat_messages').run();
-db.prepare('DELETE FROM friends').run();
-db.prepare('DELETE FROM guild_members').run();
-db.prepare('DELETE FROM guild_requests').run();
-db.prepare('DELETE FROM guilds').run();
-db.prepare('DELETE FROM game_states').run();
-db.prepare('DELETE FROM users').run();
-console.log('All user accounts and data cleared');
-
-function seed() {
-  const count = db.prepare('SELECT COUNT(*) as c FROM questions').get().c;
-  if (count > 0) return;
-
-  const questions = [
-    ['Combien font 7 x 8 ?', '54', '56', '58', '64', 1, '7 × 8 = 56'],
-    ['Racine carrée de 144 ?', '10', '11', '12', '14', 2, '√144 = 12 car 12 × 12 = 144'],
-    ['Combien font 15% de 200 ?', '15', '20', '25', '30', 3, '15% de 200 = 30'],
-    ['Quel est le PGCD de 12 et 18 ?', '2', '3', '6', '9', 2, 'Le PGCD de 12 et 18 est 6'],
-    ['Combien font 2³ ?', '6', '8', '9', '12', 1, '2³ = 8'],
-    ["L'aire d'un cercle de rayon 3 ?", '9,42', '18,85', '28,27', '12,57', 2, 'Aire = π × r² ≈ 28,27'],
-    ['Combien font 25 × 4 ?', '90', '100', '110', '125', 1, '25 × 4 = 100'],
-    ['Si x + 5 = 12, que vaut x ?', '5', '6', '7', '8', 2, 'x = 12 − 5 = 7'],
-    ["Combien de côtés a un hexagone ?", '5', '6', '7', '8', 1, 'Hexagone = 6 côtés'],
-    ['Combien font 3/4 + 1/4 ?', '1/2', '2/4', '1', '4/8', 2, '3/4 + 1/4 = 1'],
-    ['Résultat de (-3) × (-5) ?', '-15', '-8', '8', '15', 3, '(-3)×(-5) = 15'],
-    ['Combien font 1000 - 357 ?', '643', '653', '743', '753', 0, '1000 − 357 = 643'],
-  ];
-  const insertQ = db.prepare('INSERT INTO questions (question, option_a, option_b, option_c, option_d, correct_answer, explanation) VALUES (?, ?, ?, ?, ?, ?, ?)');
-  for (const q of questions) insertQ.run(...q);
-
-  const shopItems = [
-    ['Avatar Einstein', '👴', 'avatar', 100, 'Avatar du génie Einstein', null],
-    ['Avatar Newton', '🍎', 'avatar', 100, 'Avatar de Isaac Newton', null],
-    ['Avatar Pythagore', '📐', 'avatar', 100, 'Maître de la géométrie', null],
-    ['Double XP 24h', '⚡', 'boost', 200, 'Double XP pendant 24h', null],
-    ['Bouclier 3 jours', '🛡️', 'boost', 150, 'Protège ta série pendant 3 jours', null],
-    ['Cadre Or', '🖼️', 'decoration', 300, 'Cadre doré pour ton profil', null],
-    ['Bannière Étoilée', '⭐', 'decoration', 250, 'Bannière avec des étoiles', null],
-    ['Temps Bonus', '⏱️', 'boost', 180, '+30 secondes sur les quiz', null],
-    ['Pansement x1', '🩹', 'consumable', 30, 'Permet de se soigner 1 fois en duel', null],
-    ['Pansement x3', '🩹', 'consumable', 75, '3 pansements pour les duels', null],
-    ['Pansement x5', '🩹', 'consumable', 120, '5 pansements pour les duels', null],
-    ["Second Souffle", '🔄', 'consumable', 150, "Annule 1 erreur pendant l'entraînement", null],
-    ["Second Souffle x3", '🔄', 'consumable', 400, "3 Second Souffle pour l'entraînement", null],
-    ['Thème Océan', '🌊', 'theme', 300, 'Bleu océan', 'ocean'],
-    ['Thème Forêt', '🌲', 'theme', 300, 'Vert forêt', 'forest'],
-    ['Thème Royal', '👑', 'theme', 400, 'Violet royal', 'royal'],
-    ['Thème Nuit', '🌙', 'theme', 350, 'Bleu nuit', 'night'],
-    ['Thème Rose', '🌸', 'theme', 300, 'Rose bonbon', 'pink'],
-  ];
-  const insertShop = db.prepare('INSERT INTO shop_items (name, icon, type, price, description, theme_id) VALUES (?, ?, ?, ?, ?, ?)');
-  for (const item of shopItems) insertShop.run(...item);
-
-  const badges = [
-    ['first_login', 'Premier pas', '👶', 'Se connecter pour la première fois'],
-    ['first_training', 'Entraîné', '🏋️', 'Compléter 1 entraînement'],
-    ['first_duel', 'Combattant', '⚔️', 'Faire 1 duel'],
-    ['first_win', 'Vainqueur', '🏆', 'Gagner 1 duel'],
-    ['streak_3', 'Régulier', '🔥', 'Atteindre une série de 3 jours'],
-    ['streak_7', 'Infatigable', '💪', 'Atteindre une série de 7 jours'],
-    ['level_10', 'Calculateur', '✏️', 'Atteindre le niveau 10'],
-    ['level_50', 'Analyste', '📈', 'Atteindre le niveau 50'],
-    ['level_100', 'Professeur', '🎓', 'Atteindre le niveau 100'],
-    ['rich', 'Riche', '💰', 'Posséder 1 000 pièces'],
-    ['shop_first', 'Acheteur', '🛒', 'Acheter 1 objet en boutique'],
-    ['guild_join', 'Team player', '🏰', 'Rejoindre ou créer une guilde'],
-    ['perfect_quiz', 'Parfait', '💯', 'Obtenir 100% à un quiz'],
-    ['duels_10', 'Guerrier', '🗡️', 'Faire 10 duels'],
-    ['trainings_10', 'Endurant', '🎯', 'Compléter 10 entraînements'],
-  ];
-  const insertBadge = db.prepare('INSERT INTO badges (id, name, icon, description) VALUES (?, ?, ?, ?)');
-  for (const b of badges) insertBadge.run(...b);
-
-  console.log('Database seeded with default data');
-}
-
-seed();
-
-app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
-});
+await seedIfEmpty();
+app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`));

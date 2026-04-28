@@ -8,9 +8,9 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.9.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "firebase-admin": "^13.8.0",
     "jsonwebtoken": "^9.0.3"
   }
 }

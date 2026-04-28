@@ -1,0 +1,15 @@
+{
+  "indexes": [
+    { "collectionGroup": "chat_messages", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "timestamp", "order": "DESCENDING" }] },
+    { "collectionGroup": "friends", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "username", "order": "ASCENDING" }, { "fieldPath": "friendName", "order": "ASCENDING" }] },
+    { "collectionGroup": "guild_members", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "guildId", "order": "ASCENDING" }, { "fieldPath": "username", "order": "ASCENDING" }] },
+    { "collectionGroup": "guild_pending_requests", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "guildId", "order": "ASCENDING" }, { "fieldPath": "username", "order": "ASCENDING" }] },
+    { "collectionGroup": "private_messages", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "fromUser", "order": "ASCENDING" }, { "fieldPath": "to", "order": "ASCENDING" }] },
+    { "collectionGroup": "private_messages", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "to", "order": "ASCENDING" }] },
+    { "collectionGroup": "user_backpack", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "username", "order": "ASCENDING" }, { "fieldPath": "itemId", "order": "ASCENDING" }] },
+    { "collectionGroup": "user_badges", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "username", "order": "ASCENDING" }, { "fieldPath": "badgeId", "order": "ASCENDING" }] },
+    { "collectionGroup": "duel_history", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "username", "order": "ASCENDING" }] },
+    { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "isAdmin", "order": "ASCENDING" }, { "fieldPath": "totalXp", "order": "DESCENDING" }] }
+  ],
+  "fieldOverrides": []
+}
