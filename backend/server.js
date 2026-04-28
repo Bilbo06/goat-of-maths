@@ -507,7 +507,17 @@ app.post('/api/shop/:id/buy', auth, (req, res) => {
   res.json({ ok: true, newCoins: user.coins - item.price });
 });
 
-// ========== SEED ==========
+// ========== CLEANUP & SEED ==========
+
+db.prepare('DELETE FROM private_messages').run();
+db.prepare('DELETE FROM chat_messages').run();
+db.prepare('DELETE FROM friends').run();
+db.prepare('DELETE FROM guild_members').run();
+db.prepare('DELETE FROM guild_requests').run();
+db.prepare('DELETE FROM guilds').run();
+db.prepare('DELETE FROM game_states').run();
+db.prepare('DELETE FROM users').run();
+console.log('All user accounts and data cleared');
 
 function seed() {
   const count = db.prepare('SELECT COUNT(*) as c FROM questions').get().c;
@@ -572,11 +582,6 @@ function seed() {
   ];
   const insertBadge = db.prepare('INSERT INTO badges (id, name, icon, description) VALUES (?, ?, ?, ?)');
   for (const b of badges) insertBadge.run(...b);
-
-  const hash = bcrypt.hashSync('mdp123', 10);
-  db.prepare('INSERT INTO users (username, password_hash, display_name, is_admin) VALUES (?, ?, ?, ?)').run('lucas', hash, 'Lucas Dubois', 1);
-  db.prepare('INSERT INTO users (username, password_hash, display_name, is_admin) VALUES (?, ?, ?, ?)').run('emma', hash, 'Emma Martin', 0);
-  db.prepare('INSERT INTO users (username, password_hash, display_name, is_admin) VALUES (?, ?, ?, ?)').run('thomas', hash, 'Thomas Bernard', 0);
 
   console.log('Database seeded with default data');
 }
